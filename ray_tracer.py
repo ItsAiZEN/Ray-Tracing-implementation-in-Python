@@ -9,7 +9,7 @@ from scene_settings import SceneSettings
 from surfaces.cube import Cube
 from surfaces.infinite_plane import InfinitePlane
 from surfaces.sphere import Sphere
-
+# Test git's push
 
 def parse_scene_file(file_path):
     objects = []
