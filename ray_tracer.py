@@ -9,7 +9,7 @@ from scene_settings import SceneSettings
 from surfaces.cube import Cube
 from surfaces.infinite_plane import InfinitePlane
 from surfaces.sphere import Sphere
-# Test git's push
+
 
 def parse_scene_file(file_path):
     objects = []
@@ -52,6 +52,40 @@ def save_image(image_array):
 
     # Save the image to a file
     image.save("scenes/Spheres.png")
+
+
+"""
+The general process of ray tracing is:
+
+1:
+Shoot a ray through each pixel in the image. For each pixel, you should:
+1.1. Discover the location of the pixel on the camera’s screen (using camera parameters).
+1.2. Construct a ray from the camera through that pixel.
+
+2:
+Check the intersection of the ray with all surfaces in the scene 
+(you can add optimizations such as BSP trees if you wish but they are not mandatory).
+
+3:
+Find the nearest intersection of the ray. This is the surface that will be seen in the image.
+
+4:
+Compute the color of the surface:
+4.1. Go over each light in the scene.
+4.2. Add the value it induces on the surface.
+
+5:
+Find out whether the light hits the surface or not:
+5.1. Shoot rays from the light towards the surface.
+5.2. Find whether the ray intersects any other surfaces before the required surface - if so,
+ the surface is occluded from the light and the light does not affect it
+  (or partially affects it because of the shadow intensity parameter).
+
+6:
+Produce soft shadows, as explained below:
+6.1. Shoot several rays from the proximity of the light to the surface.
+6.2. Find out how many of them hit the required surface.
+"""
 
 
 def main():
