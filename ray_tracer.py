@@ -131,8 +131,9 @@ def main():
                     j - math.floor(args.height / 2)) - camera.position
             # we subtract the camera position because we want the ray to start from the camera position
 
-            # Step 2:
-            # Check the intersection of the ray with all surfaces in the scene
+            # Step 2 & 3:
+            # Check the intersection of the ray with all surfaces in the scene, then sift through the results for the
+            # closest intersection of the ray. This is the surface that will be seen in the image.
             closest_surface = (None, float('inf'))
             closest_intersection_distance = float('inf')
             for surface in objects:
@@ -209,6 +210,100 @@ def main():
                                     if 0 < t < closest_intersection_distance:
                                         closest_intersection_distance = t
                                         closest_surface = (surface, point_of_intersection)
+
+            # Step 4:
+            # Calculate the color of the pixel based on the surface properties and the light sources in the scene.
+            # 4.1. Go over each light in the scene.
+            # 4.2. Add the value it induces on the surface.
+
+            # if the ray intersects with a surface
+            if closest_surface[0] is None:
+                our_image_array[i][j] = np.array([0, 0, 0])
+            else:
+                # calculate the normal vector of the surface at the intersection point
+                if type(closest_surface[0]) == Sphere:
+                    normal = closest_surface[1] - closest_surface[0].position
+                    normal = normal / np.linalg.norm(normal)
+
+                elif type(closest_surface[0]) == InfinitePlane:
+                    normal = closest_surface[0].normal
+                    normal = normal / np.linalg.norm(normal)
+
+                elif type(closest_surface[0]) == Cube:
+                    center = closest_surface[0].position
+                    edge_length = closest_surface[0].scale
+                    # check which plane is the closest to the intersection point
+                    closet_plane = -1
+                    minimal_distance = float('inf')
+                    if abs(closest_surface[1][0] - center[0] + edge_length / 2) < minimal_distance:
+                        closet_plane = 0
+                    if abs(closest_surface[1][0] + center[0] + edge_length / 2) < minimal_distance:
+                        closet_plane = 1
+                    if abs(closest_surface[1][1] - center[1] + edge_length / 2) < minimal_distance:
+                        closet_plane = 2
+                    if abs(closest_surface[1][1] + center[1] + edge_length / 2) < minimal_distance:
+                        closet_plane = 3
+                    if abs(closest_surface[1][2] - center[2] + edge_length / 2) < minimal_distance:
+                        closet_plane = 4
+                    if abs(closest_surface[1][2] + center[2] + edge_length / 2) < minimal_distance:
+                        closet_plane = 5
+
+                    if closet_plane == 0:
+                        normal = np.array([1, 0, 0])
+                    elif closet_plane == 1:
+                        normal = np.array([-1, 0, 0])
+                    elif closet_plane == 2:
+                        normal = np.array([0, 1, 0])
+                    elif closet_plane == 3:
+                        normal = np.array([0, -1, 0])
+                    elif closet_plane == 4:
+                        normal = np.array([0, 0, 1])
+                    elif closet_plane == 5:
+                        normal = np.array([0, 0, -1])
+                    normal = normal / np.linalg.norm(normal)
+
+                # calculate the intersection to the camera
+                view = camera.position - closest_surface[1]
+                view = view / np.linalg.norm(view)
+
+                material_index = closest_surface[0].material_index
+                material_counter = 0
+                surface_material = None
+                for object in objects:
+                    if type(object) == Material:
+                        material_counter += 1
+                        if material_counter == material_index:
+                            surface_material = object
+                            break
+
+                material_diffuse = surface_material.diffuse_color
+                material_specular = surface_material.specular_color
+
+                for light in objects:
+                    if type(light) is not Light:
+                        continue
+                    else:
+                        light_intensity = None
+                        shadow_intensity = light.shadow_intensity
+                        final_color = np.array([0, 0, 0])
+                        # SigmaL(Kd(N.L)+Ks(V.R)^n)SLIL
+                        for color in range(3):
+                            intersection_to_light = light.position - closest_surface[1]
+                            intersection_to_reflected_light = 2 * np.dot(intersection_to_light,
+                                                                         normal) * normal - intersection_to_light
+                            color = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
+                                     material_specular[color] * np.dot(view,
+                                                                       intersection_to_reflected_light) ** surface_material.shininess) * (
+                                            1 - shadow_intensity) * light_intensity
+                            # TODO if its 1- shadow_intensity or  just shadow_intensity
+                            # TODO also maybe we need to add an if statement for this case
+
+                            # TODO calculate the light intensity based on the distance from the light source with the
+                            # formula 1/(a + b*d + c*d^2)?
+                            """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
+
+                            final_color[color] = color
+                        final_color = final_color * light.color
 
     # Dummy result
     image_array = np.zeros((500, 500, 3))
