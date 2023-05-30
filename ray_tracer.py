@@ -105,7 +105,7 @@ def main():
 
     # TODO: Implement the ray tracer
 
-    our_image_array = np.zeros((args.width, args.height, 3))
+    image_array = np.zeros((args.width, args.height, 3))
 
     for i in range(args.width):
         for j in range(args.height):
@@ -115,7 +115,7 @@ def main():
             # we have the following parameters: position, look_at, up_vector, screen_distance, screen_width
 
             # calculate the center of the image (Pc)
-            image_center = camera.position + camera.look_at * camera.screen_distance
+            image_center = camera.position + np.array(camera.look_at) * camera.screen_distance
 
             # calculate Vright and Vup
             v_right = np.cross(camera.look_at, camera.up_vector)
@@ -154,8 +154,9 @@ def main():
                     # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
                     # the result (t) is the distance from the ray origin to the intersection point
 
-                    coefficients = [1, 2 * np.dot(ray, camera.position - surface.center),
-                                    np.linalg.norm(camera.position - surface.center) ** 2 - surface.radius ** 2]
+                    coefficients = [1, 2 * np.dot(ray, np.array(camera.position) - np.array(surface.position)),
+                                    np.linalg.norm(np.array(camera.position) - np.array(
+                                        surface.position)) ** 2 - surface.radius ** 2]
                     roots = np.roots(coefficients)
                     for t in roots:
                         if 0 < t < closest_intersection_distance:
@@ -218,7 +219,7 @@ def main():
 
             # if the ray intersects with a surface
             if closest_surface[0] is None:
-                our_image_array[i][j] = np.array([0, 0, 0])
+                image_array[i][j] = np.array([0, 0, 0])
             else:
                 # calculate the normal vector of the surface at the intersection point
                 if type(closest_surface[0]) == Sphere:
@@ -283,7 +284,14 @@ def main():
                     if type(light) is not Light:
                         continue
                     else:
-                        light_intensity = None
+                        # light_intensity = 1 / light.radius ** 2
+                        light_intensity = 1
+                        # TODO calculate true light intensity
+                        # we will calculate the light intensity by creating a grid relative to the location of the light
+                        # and its radius, the grid will be scene_settings.root_number_shadow_rays wide, then we will
+                        # calculate the intensity of the light by
+                        # light intensity = (1− shadow intensity) * 1 + shadow intensity *
+                        # ( % of rays that hit the points from the light source)
                         shadow_intensity = light.shadow_intensity
                         final_color = np.array([0, 0, 0])
                         # SigmaL(Kd(N.L)+Ks(V.R)^n)SLIL
@@ -291,22 +299,36 @@ def main():
                             intersection_to_light = light.position - closest_surface[1]
                             intersection_to_reflected_light = 2 * np.dot(intersection_to_light,
                                                                          normal) * normal - intersection_to_light
-                            color = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
-                                     material_specular[color] * np.dot(view,
-                                                                       intersection_to_reflected_light) ** surface_material.shininess) * (
-                                            1 - shadow_intensity) * light_intensity
+                            diffusion_and_specular = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
+                                                      material_specular[color] * np.dot(view,
+                                                                                        intersection_to_reflected_light) ** surface_material.shininess) * (
+                                                             1 - shadow_intensity) * light_intensity
                             # TODO if its 1- shadow_intensity or  just shadow_intensity
                             # TODO also maybe we need to add an if statement for this case
 
                             # TODO calculate the light intensity based on the distance from the light source with the
+                            # TODO add relevant calculation for specular intensity and specular color together
+                            # or maybe just update the color and specular color and diffuse beforehand
+                            # TODO maybe the color within the color formula instead of at the end
                             # formula 1/(a + b*d + c*d^2)?
                             """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
 
-                            final_color[color] = color
+                            final_color[
+                                color] = scene_settings.background_color[
+                                             color] * surface_material.transparency + diffusion_and_specular * (
+                                                 1 - surface_material.transparency) + surface_material.reflection_color[
+                                             color]
                         final_color = final_color * light.color
+            image_array[i, j] = final_color
+            # print(f"pixel {i} {j} {final_color}")
 
-    # Dummy result
-    image_array = np.zeros((500, 500, 3))
+    # # Dummy result
+    # image_array = np.zeros((500, 500, 3))
+    image_array = image_array.clip(0, 255)
+    for i in range(args.height):
+        for j in range(args.width):
+            for k in range(3):
+                image_array[i][j][k] = int(image_array[i][j][k])
 
     # Save the output image
     save_image(image_array)
