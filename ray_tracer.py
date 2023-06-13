@@ -137,7 +137,7 @@ def main():
 
             # !!! we change the placement of i and j according to the presentation !!! #
 
-            ray = image_center + v_right * ratio * (i - math.floor(args.width / 2)) - v_up * ratio * (
+            ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
             # we subtract the camera position because we want the ray to start from the camera position
