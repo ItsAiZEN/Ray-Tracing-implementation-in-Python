@@ -141,7 +141,7 @@ def main():
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
 
-            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera)
+            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, 1)
 
     # # Dummy result
     for i in range(args.height):
@@ -155,7 +155,9 @@ def main():
     save_image(image_array)
 
 
-def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera):
+def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
+    if depth <= 0:
+        return
     # we subtract the camera position because we want the ray to start from the camera position
     # !!! maybe subtracting the camera position is wrong !!! #
 
@@ -258,7 +260,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera):
 
     # if the ray intersects with a surface
     if closest_surface[0] is None:
-        image_array[i][j] = scene_settings.background_color
+        image_array[i][j] += scene_settings.background_color
     else:
         # print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ",
         #      closest_intersection_distance)  # !!! good for debugging !!!
