@@ -345,6 +345,10 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                     intersection_to_reflected_light = intersection_to_reflected_light / np.linalg.norm(
                         intersection_to_reflected_light)
 
+                    reflected_ray = 2 * np.dot(-ray, normal) * normal + ray
+
+                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, camera, depth - 1)
+
                     # !!! intersection to light might be a bad calculation !!!
 
                     diffusion_and_specular = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
