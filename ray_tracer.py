@@ -156,7 +156,7 @@ def main():
 
 
 def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
-    if depth <= 0:
+    if depth > 1:
         return
     # we subtract the camera position because we want the ray to start from the camera position
     # !!! maybe subtracting the camera position is wrong !!! #
@@ -374,7 +374,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
 
                     # !!! changed the multiplication by * light.color to inside the final color calculation
 
-                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, camera, depth - 1)
+                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, camera, depth + 1)
 
 
 if __name__ == '__main__':
