@@ -141,7 +141,7 @@ def main():
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
 
-            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, 1)
+            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, 2)
 
     # # Dummy result
     for i in range(args.height):
@@ -345,7 +345,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                     intersection_to_reflected_light = intersection_to_reflected_light / np.linalg.norm(
                         intersection_to_reflected_light)
 
-                    reflected_ray = 2 * np.dot(-ray, normal) * normal + ray
+                    reflected_ray = ray - 2 * np.dot(ray, normal) * normal
+                    reflected_ray = reflected_ray / np.linalg.norm(reflected_ray)
 
                     ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, camera, depth - 1)
 
