@@ -141,7 +141,7 @@ def main():
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
 
-            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, 2)
+            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, 1)
 
     # # Dummy result
     for i in range(args.height):
@@ -348,7 +348,6 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                     reflected_ray = ray - 2 * np.dot(ray, normal) * normal
                     reflected_ray = reflected_ray / np.linalg.norm(reflected_ray)
 
-                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, camera, depth - 1)
 
                     # !!! intersection to light might be a bad calculation !!!
 
@@ -374,6 +373,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                     # print("diffusion and specular", diffusion_and_specular)
 
                     # !!! changed the multiplication by * light.color to inside the final color calculation
+
+                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, camera, depth - 1)
 
 
 if __name__ == '__main__':
