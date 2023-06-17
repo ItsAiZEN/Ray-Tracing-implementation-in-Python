@@ -140,6 +140,7 @@ def main():
             ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
+
             # we subtract the camera position because we want the ray to start from the camera position
             # !!! maybe subtracting the camera position is wrong !!! #
 
@@ -166,7 +167,7 @@ def main():
                     # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
                     # the result (t) is the distance from the ray origin to the intersection point
 
-                    coefficients = [1, np.dot(2*ray, np.array(camera.position) - np.array(surface.position)),
+                    coefficients = [1, np.dot(2 * ray, np.array(camera.position) - np.array(surface.position)),
                                     np.linalg.norm(np.array(camera.position) - np.array(
                                         surface.position)) ** 2 - surface.radius ** 2]
                     # !!! change to 0 from np.linalg.norm(np.array(camera.position) - np.array( surface.position)) ** 2 - surface.radius ** 2
@@ -244,7 +245,8 @@ def main():
             if closest_surface[0] is None:
                 image_array[i][j] = scene_settings.background_color
             else:
-                print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ", closest_intersection_distance)  # !!! good for debugging !!!
+                # print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ",
+                #      closest_intersection_distance)  # !!! good for debugging !!!
                 # calculate the normal vector of the surface at the intersection point
                 if type(closest_surface[0]) == Sphere:
                     normal = closest_surface[1] - closest_surface[0].position
@@ -303,7 +305,6 @@ def main():
 
                 material_diffuse = surface_material.diffuse_color
                 material_specular = surface_material.specular_color
-                final_color = np.array([0, 0, 0])
                 for light in objects:
                     if type(light) is not Light:
                         continue
@@ -332,7 +333,7 @@ def main():
                             diffusion_and_specular = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
                                                       material_specular[color] * np.dot(view,
                                                                                         intersection_to_reflected_light) ** surface_material.shininess)
-                                                     # !!! * (1 - shadow_intensity) * light_intensity !!!
+                            # !!! * (1 - shadow_intensity) * light_intensity !!!
                             # TODO shininess is makes the result way too high
                             # TODO if its 1- shadow_intensity or  just shadow_intensity
                             # TODO also maybe we need to add an if statement for this case
@@ -344,15 +345,13 @@ def main():
                             # formula 1/(a + b*d + c*d^2)?
                             """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
 
-                            final_color[
-                                color] += scene_settings.background_color[
-                                             color] * surface_material.transparency + diffusion_and_specular * \
-                                          (1 - surface_material.transparency) * light.color[color] * 255 + \
-                                          surface_material.reflection_color[color]
-                            print("diffusion and specular", diffusion_and_specular)
+                            image_array[i, j, color] += scene_settings.background_color[
+                                                            color] * surface_material.transparency + diffusion_and_specular * \
+                                                        (1 - surface_material.transparency) * light.color[color] * 255 + \
+                                                        surface_material.reflection_color[color]
+                            # print("diffusion and specular", diffusion_and_specular)
 
-            image_array[
-                i, j] = final_color  # !!! changed the multiplication by * light.color to inside the final color calculation
+            # !!! changed the multiplication by * light.color to inside the final color calculation
             # print(f"pixel {i} {j} {final_color}")
 
     # # Dummy result
