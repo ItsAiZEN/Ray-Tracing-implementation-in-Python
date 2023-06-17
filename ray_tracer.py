@@ -141,221 +141,9 @@ def main():
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
 
-            # we subtract the camera position because we want the ray to start from the camera position
-            # !!! maybe subtracting the camera position is wrong !!! #
-
-            # Step 2 & 3:
-            # Check the intersection of the ray with all surfaces in the scene, then sift through the results for the
-            # closest intersection of the ray. This is the surface that will be seen in the image.
-            closest_surface = (None, float('inf'))
-            closest_intersection_distance = float('inf')
-            for surface in objects:
-                # check if the surface is a sphere
-                if type(surface) in [Light, Material]:
-                    pass
-                elif type(surface) == Sphere:
-                    """
-                    Solve quadratic equation:
-                    at2 + bt + c = 0
-                    where:
-                        a = 1
-                        b = 2 *(V • (P0 - O))
-                        c = ||P0 - O||****2 - r**2 (= 0 ?)
-                    """
-
-                    # ray is a 3D vector, sphere is a Sphere object which has a center point and a radius
-                    # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
-                    # the result (t) is the distance from the ray origin to the intersection point
-
-                    coefficients = [1, np.dot(2 * ray, np.array(camera.position) - np.array(surface.position)),
-                                    np.linalg.norm(np.array(camera.position) - np.array(
-                                        surface.position)) ** 2 - surface.radius ** 2]
-                    # !!! change to 0 from np.linalg.norm(np.array(camera.position) - np.array( surface.position)) ** 2 - surface.radius ** 2
-                    # in the third coefficient !!!
-                    # get only real roots
-                    # check if the discriminant is negative, if so, there are no real roots
-                    discriminant = coefficients[1] ** 2 - 4 * coefficients[0] * coefficients[2]
-                    if discriminant >= 0:
-                        roots = np.roots(coefficients)
-                        for t in roots:
-                            if 0 < t < closest_intersection_distance:
-                                point_of_intersection = camera.position + t * ray
-                                closest_intersection_distance = t
-                                closest_surface = (surface, point_of_intersection)
-
-                elif type(surface) == InfinitePlane:
-                    """
-                    t = -(P0 • N - d) / (V • N)
-                    """
-                    # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
-                    # and we avoid division by zero
-                    surface_normal = np.array(surface.normal)
-                    surface_normal = surface_normal / np.linalg.norm(surface_normal)
-                    if np.dot(ray, surface_normal) != 0:
-                        t = -(np.dot(camera.position, surface_normal) - surface.offset) / np.dot(ray, surface_normal)
-                        # !!! maybe change normal to -normal !!!
-                        if 0 < t < closest_intersection_distance:
-                            point_of_intersection = camera.position + t * ray
-                            closest_intersection_distance = t
-                            closest_surface = (surface, point_of_intersection)
-
-                elif type(surface) == Cube:
-                    # we will use the slab method, we know the cube is axis aligned, we can check each axis separately
-                    # we will create 6 planes, one for each side of the cube, and check if the ray intersects with them
-                    # instead of creating objects for each plane, we will use the plane equation:
-                    # ax + by + cz + d = 0
-                    # where a, b, c are the normal vector of the plane, and d is the offset
-                    # we will use the normal vector and the offset to create the planes
-                    center = surface.position
-                    edge_length = surface.scale
-                    # infinite planes are defined by (normal, offset, material)
-                    plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, None)
-                    plane2 = InfinitePlane(np.array([-1, 0, 0]), -center[0] + edge_length / 2, None)
-                    plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, None)
-                    plane4 = InfinitePlane(np.array([0, -1, 0]), -center[1] + edge_length / 2, None)
-                    plane5 = InfinitePlane(np.array([0, 0, 1]), center[2] + edge_length / 2, None)
-                    plane6 = InfinitePlane(np.array([0, 0, -1]), -center[2] + edge_length / 2, None)
-
-                    planes = [plane1, plane2, plane3, plane4, plane5, plane6]
-
-                    for plane in planes:
-                        # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
-                        # and we avoid division by zero
-                        plane_normal = np.array(plane.normal)
-                        plane_normal = plane_normal / np.linalg.norm(plane_normal)
-                        if np.dot(ray, plane_normal) != 0:
-                            t = -(np.dot(camera.position, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
-                            if t > 0:
-                                point_of_intersection = camera.position + t * ray
-                                # check if the point is inside the cube
-                                if center[0] - edge_length / 2 <= point_of_intersection[0] <= center[
-                                    0] + edge_length / 2 and center[1] - edge_length / 2 <= point_of_intersection[1] <= \
-                                        center[1] + edge_length / 2 and center[2] - edge_length / 2 <= \
-                                        point_of_intersection[2] <= center[2] + edge_length / 2:
-                                    if 0 < t < closest_intersection_distance:
-                                        closest_intersection_distance = t
-                                        closest_surface = (surface, point_of_intersection)
-
-            # Step 4:
-            # Calculate the color of the pixel based on the surface properties and the light sources in the scene.
-            # 4.1. Go over each light in the scene.
-            # 4.2. Add the value it induces on the surface.
-
-            # if the ray intersects with a surface
-            if closest_surface[0] is None:
-                image_array[i][j] = scene_settings.background_color
-            else:
-                # print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ",
-                #      closest_intersection_distance)  # !!! good for debugging !!!
-                # calculate the normal vector of the surface at the intersection point
-                if type(closest_surface[0]) == Sphere:
-                    normal = closest_surface[1] - closest_surface[0].position
-                    normal = normal / np.linalg.norm(normal)
-
-                elif type(closest_surface[0]) == InfinitePlane:
-                    normal = closest_surface[0].normal
-                    normal = normal / np.linalg.norm(normal)
-
-                elif type(closest_surface[0]) == Cube:
-                    center = closest_surface[0].position
-                    edge_length = closest_surface[0].scale
-                    # check which plane is the closest to the intersection point
-                    closet_plane = -1
-                    minimal_distance = float('inf')
-                    if abs(closest_surface[1][0] - center[0] + edge_length / 2) < minimal_distance:
-                        closet_plane = 0
-                    if abs(closest_surface[1][0] + center[0] + edge_length / 2) < minimal_distance:
-                        closet_plane = 1
-                    if abs(closest_surface[1][1] - center[1] + edge_length / 2) < minimal_distance:
-                        closet_plane = 2
-                    if abs(closest_surface[1][1] + center[1] + edge_length / 2) < minimal_distance:
-                        closet_plane = 3
-                    if abs(closest_surface[1][2] - center[2] + edge_length / 2) < minimal_distance:
-                        closet_plane = 4
-                    if abs(closest_surface[1][2] + center[2] + edge_length / 2) < minimal_distance:
-                        closet_plane = 5
-
-                    if closet_plane == 0:
-                        normal = np.array([1, 0, 0])
-                    elif closet_plane == 1:
-                        normal = np.array([-1, 0, 0])
-                    elif closet_plane == 2:
-                        normal = np.array([0, 1, 0])
-                    elif closet_plane == 3:
-                        normal = np.array([0, -1, 0])
-                    elif closet_plane == 4:
-                        normal = np.array([0, 0, 1])
-                    elif closet_plane == 5:
-                        normal = np.array([0, 0, -1])
-                    normal = normal / np.linalg.norm(normal)
-
-                # calculate the intersection to the camera
-                view = camera.position - closest_surface[1]
-                view = view / np.linalg.norm(view)
-
-                material_index = closest_surface[0].material_index
-                material_counter = 0
-                surface_material = None
-                for object in objects:
-                    if type(object) == Material:
-                        material_counter += 1
-                        if material_counter == material_index:
-                            surface_material = object
-                            break
-
-                material_diffuse = surface_material.diffuse_color
-                material_specular = surface_material.specular_color
-                for light in objects:
-                    if type(light) is not Light:
-                        continue
-                    else:
-                        # light_intensity = 1 / light.radius ** 2
-                        light_intensity = 1
-                        # TODO calculate true light intensity
-                        # we will calculate the light intensity by creating a grid relative to the location of the light
-                        # and its radius, the grid will be scene_settings.root_number_shadow_rays wide, then we will
-                        # calculate the intensity of the light by
-                        # light intensity = (1− shadow intensity) * 1 + shadow intensity *
-                        # ( % of rays that hit the points from the light source)
-                        shadow_intensity = light.shadow_intensity
-                        # SigmaL(Kd(N.L)+Ks(V.R)^n)SLIL
-                        for color in range(3):
-                            intersection_to_light = light.position - closest_surface[1]
-                            intersection_to_light = intersection_to_light / np.linalg.norm(intersection_to_light)
-
-                            intersection_to_reflected_light = 2 * np.dot(intersection_to_light,
-                                                                         normal) * normal - intersection_to_light
-                            intersection_to_reflected_light = intersection_to_reflected_light / np.linalg.norm(
-                                intersection_to_reflected_light)
-
-                            # !!! intersection to light might be a bad calculation !!!
-
-                            diffusion_and_specular = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
-                                                      material_specular[color] * np.dot(view,
-                                                                                        intersection_to_reflected_light) ** surface_material.shininess)
-                            # !!! * (1 - shadow_intensity) * light_intensity !!!
-                            # TODO shininess is makes the result way too high
-                            # TODO if its 1- shadow_intensity or  just shadow_intensity
-                            # TODO also maybe we need to add an if statement for this case
-
-                            # TODO calculate the light intensity based on the distance from the light source with the
-                            # TODO add relevant calculation for specular intensity and specular color together
-                            # or maybe just update the color and specular color and diffuse beforehand
-                            # TODO maybe the color within the color formula instead of at the end
-                            # formula 1/(a + b*d + c*d^2)?
-                            """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
-
-                            image_array[i, j, color] += scene_settings.background_color[
-                                                            color] * surface_material.transparency + diffusion_and_specular * \
-                                                        (1 - surface_material.transparency) * light.color[color] * 255 + \
-                                                        surface_material.reflection_color[color]
-                            # print("diffusion and specular", diffusion_and_specular)
-
-            # !!! changed the multiplication by * light.color to inside the final color calculation
-            # print(f"pixel {i} {j} {final_color}")
+            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera)
 
     # # Dummy result
-    # image_array = np.zeros((500, 500, 3))
     for i in range(args.height):
         for j in range(args.width):
             for k in range(3):
@@ -365,6 +153,220 @@ def main():
 
     # Save the output image
     save_image(image_array)
+
+
+def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera):
+    # we subtract the camera position because we want the ray to start from the camera position
+    # !!! maybe subtracting the camera position is wrong !!! #
+
+    # Step 2 & 3:
+    # Check the intersection of the ray with all surfaces in the scene, then sift through the results for the
+    # closest intersection of the ray. This is the surface that will be seen in the image.
+    closest_surface = (None, float('inf'))
+    closest_intersection_distance = float('inf')
+    for surface in objects:
+        # check if the surface is a sphere
+        if type(surface) in [Light, Material]:
+            pass
+        elif type(surface) == Sphere:
+            """
+            Solve quadratic equation:
+            at2 + bt + c = 0
+            where:
+                a = 1
+                b = 2 *(V • (P0 - O))
+                c = ||P0 - O||****2 - r**2 (= 0 ?)
+            """
+
+            # ray is a 3D vector, sphere is a Sphere object which has a center point and a radius
+            # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
+            # the result (t) is the distance from the ray origin to the intersection point
+
+            coefficients = [1, np.dot(2 * ray, np.array(camera.position) - np.array(surface.position)),
+                            np.linalg.norm(np.array(camera.position) - np.array(
+                                surface.position)) ** 2 - surface.radius ** 2]
+            # !!! change to 0 from np.linalg.norm(np.array(camera.position) - np.array( surface.position)) ** 2 - surface.radius ** 2
+            # in the third coefficient !!!
+            # get only real roots
+            # check if the discriminant is negative, if so, there are no real roots
+            discriminant = coefficients[1] ** 2 - 4 * coefficients[0] * coefficients[2]
+            if discriminant >= 0:
+                roots = np.roots(coefficients)
+                for t in roots:
+                    if 0 < t < closest_intersection_distance:
+                        point_of_intersection = camera.position + t * ray
+                        closest_intersection_distance = t
+                        closest_surface = (surface, point_of_intersection)
+
+        elif type(surface) == InfinitePlane:
+            """
+            t = -(P0 • N - d) / (V • N)
+            """
+            # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
+            # and we avoid division by zero
+            surface_normal = np.array(surface.normal)
+            surface_normal = surface_normal / np.linalg.norm(surface_normal)
+            if np.dot(ray, surface_normal) != 0:
+                t = -(np.dot(camera.position, surface_normal) - surface.offset) / np.dot(ray, surface_normal)
+                # !!! maybe change normal to -normal !!!
+                if 0 < t < closest_intersection_distance:
+                    point_of_intersection = camera.position + t * ray
+                    closest_intersection_distance = t
+                    closest_surface = (surface, point_of_intersection)
+
+        elif type(surface) == Cube:
+            # we will use the slab method, we know the cube is axis aligned, we can check each axis separately
+            # we will create 6 planes, one for each side of the cube, and check if the ray intersects with them
+            # instead of creating objects for each plane, we will use the plane equation:
+            # ax + by + cz + d = 0
+            # where a, b, c are the normal vector of the plane, and d is the offset
+            # we will use the normal vector and the offset to create the planes
+            center = surface.position
+            edge_length = surface.scale
+            # infinite planes are defined by (normal, offset, material)
+            plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, None)
+            plane2 = InfinitePlane(np.array([-1, 0, 0]), -center[0] + edge_length / 2, None)
+            plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, None)
+            plane4 = InfinitePlane(np.array([0, -1, 0]), -center[1] + edge_length / 2, None)
+            plane5 = InfinitePlane(np.array([0, 0, 1]), center[2] + edge_length / 2, None)
+            plane6 = InfinitePlane(np.array([0, 0, -1]), -center[2] + edge_length / 2, None)
+
+            planes = [plane1, plane2, plane3, plane4, plane5, plane6]
+
+            for plane in planes:
+                # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
+                # and we avoid division by zero
+                plane_normal = np.array(plane.normal)
+                plane_normal = plane_normal / np.linalg.norm(plane_normal)
+                if np.dot(ray, plane_normal) != 0:
+                    t = -(np.dot(camera.position, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
+                    if t > 0:
+                        point_of_intersection = camera.position + t * ray
+                        # check if the point is inside the cube
+                        if center[0] - edge_length / 2 <= point_of_intersection[0] <= center[
+                            0] + edge_length / 2 and center[1] - edge_length / 2 <= point_of_intersection[1] <= \
+                                center[1] + edge_length / 2 and center[2] - edge_length / 2 <= \
+                                point_of_intersection[2] <= center[2] + edge_length / 2:
+                            if 0 < t < closest_intersection_distance:
+                                closest_intersection_distance = t
+                                closest_surface = (surface, point_of_intersection)
+
+    # Step 4:
+    # Calculate the color of the pixel based on the surface properties and the light sources in the scene.
+    # 4.1. Go over each light in the scene.
+    # 4.2. Add the value it induces on the surface.
+
+    # if the ray intersects with a surface
+    if closest_surface[0] is None:
+        image_array[i][j] = scene_settings.background_color
+    else:
+        # print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ",
+        #      closest_intersection_distance)  # !!! good for debugging !!!
+        # calculate the normal vector of the surface at the intersection point
+        if type(closest_surface[0]) == Sphere:
+            normal = closest_surface[1] - closest_surface[0].position
+            normal = normal / np.linalg.norm(normal)
+
+        elif type(closest_surface[0]) == InfinitePlane:
+            normal = closest_surface[0].normal
+            normal = normal / np.linalg.norm(normal)
+
+        elif type(closest_surface[0]) == Cube:
+            center = closest_surface[0].position
+            edge_length = closest_surface[0].scale
+            # check which plane is the closest to the intersection point
+            closet_plane = -1
+            minimal_distance = float('inf')
+            if abs(closest_surface[1][0] - center[0] + edge_length / 2) < minimal_distance:
+                closet_plane = 0
+            if abs(closest_surface[1][0] + center[0] + edge_length / 2) < minimal_distance:
+                closet_plane = 1
+            if abs(closest_surface[1][1] - center[1] + edge_length / 2) < minimal_distance:
+                closet_plane = 2
+            if abs(closest_surface[1][1] + center[1] + edge_length / 2) < minimal_distance:
+                closet_plane = 3
+            if abs(closest_surface[1][2] - center[2] + edge_length / 2) < minimal_distance:
+                closet_plane = 4
+            if abs(closest_surface[1][2] + center[2] + edge_length / 2) < minimal_distance:
+                closet_plane = 5
+
+            if closet_plane == 0:
+                normal = np.array([1, 0, 0])
+            elif closet_plane == 1:
+                normal = np.array([-1, 0, 0])
+            elif closet_plane == 2:
+                normal = np.array([0, 1, 0])
+            elif closet_plane == 3:
+                normal = np.array([0, -1, 0])
+            elif closet_plane == 4:
+                normal = np.array([0, 0, 1])
+            elif closet_plane == 5:
+                normal = np.array([0, 0, -1])
+            normal = normal / np.linalg.norm(normal)
+
+        # calculate the intersection to the camera
+        view = camera.position - closest_surface[1]
+        view = view / np.linalg.norm(view)
+
+        material_index = closest_surface[0].material_index
+        material_counter = 0
+        surface_material = None
+        for object in objects:
+            if type(object) == Material:
+                material_counter += 1
+                if material_counter == material_index:
+                    surface_material = object
+                    break
+
+        material_diffuse = surface_material.diffuse_color
+        material_specular = surface_material.specular_color
+        for light in objects:
+            if type(light) is not Light:
+                continue
+            else:
+                # light_intensity = 1 / light.radius ** 2
+                light_intensity = 1
+                # TODO calculate true light intensity
+                # we will calculate the light intensity by creating a grid relative to the location of the light
+                # and its radius, the grid will be scene_settings.root_number_shadow_rays wide, then we will
+                # calculate the intensity of the light by
+                # light intensity = (1− shadow intensity) * 1 + shadow intensity *
+                # ( % of rays that hit the points from the light source)
+                shadow_intensity = light.shadow_intensity
+                # SigmaL(Kd(N.L)+Ks(V.R)^n)SLIL
+                for color in range(3):
+                    intersection_to_light = light.position - closest_surface[1]
+                    intersection_to_light = intersection_to_light / np.linalg.norm(intersection_to_light)
+
+                    intersection_to_reflected_light = 2 * np.dot(intersection_to_light,
+                                                                 normal) * normal - intersection_to_light
+                    intersection_to_reflected_light = intersection_to_reflected_light / np.linalg.norm(
+                        intersection_to_reflected_light)
+
+                    # !!! intersection to light might be a bad calculation !!!
+
+                    diffusion_and_specular = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
+                                              material_specular[color] * np.dot(view,
+                                                                                intersection_to_reflected_light) ** surface_material.shininess)
+                    # !!! * (1 - shadow_intensity) * light_intensity !!!
+                    # TODO shininess is makes the result way too high
+                    # TODO if its 1- shadow_intensity or  just shadow_intensity
+                    # TODO also maybe we need to add an if statement for this case
+
+                    # TODO calculate the light intensity based on the distance from the light source with the
+                    # TODO add relevant calculation for specular intensity and specular color together
+                    # or maybe just update the color and specular color and diffuse beforehand
+                    # TODO maybe the color within the color formula instead of at the end
+                    # formula 1/(a + b*d + c*d^2)?
+                    """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
+
+                    image_array[i, j, color] += scene_settings.background_color[
+                                                    color] * surface_material.transparency + diffusion_and_specular * \
+                                                (1 - surface_material.transparency) * light.color[color] * 255 + \
+                                                surface_material.reflection_color[color]
+                    # print("diffusion and specular", diffusion_and_specular)
+
+                    # !!! changed the multiplication by * light.color to inside the final color calculation
 
 
 if __name__ == '__main__':
