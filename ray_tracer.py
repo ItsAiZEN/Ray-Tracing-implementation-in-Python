@@ -374,14 +374,12 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 """
                 grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
                 light_v_right = np.random.randn(3)  # take a random vector
-                light_v_right = light_v_right.astype(np.float64)  # convert to float64 explicitly
+                light_v_right = light_v_right.astype(np.complex128)  # convert to complex128 explicitly
 
-                dot_product = light_v_right.dot(intersection_to_light)
-                real_dot_product = np.real(dot_product)  # Extract the real part of the dot product result
-
-                light_v_right -= real_dot_product * intersection_to_light / np.linalg.norm(intersection_to_light) ** 2
+                dot_product = light_v_right.dot(-intersection_to_light)
+                light_v_right -= dot_product.real * intersection_to_light / np.linalg.norm(-intersection_to_light) ** 2
                 light_v_right /= np.linalg.norm(light_v_right)  # normalize it
-                light_v_up = np.cross(intersection_to_light, light_v_right)
+                light_v_up = np.cross(-intersection_to_light, light_v_right)
                 light_v_up /= np.linalg.norm(light_v_up)
 
                 shadow_rays_count = 0
