@@ -141,7 +141,7 @@ def main():
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
 
-            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, 1)
+            ray_tracer(ray, i, j, image_array, objects, scene_settings, camera.position, 1)
 
     # # Dummy result
     for i in range(args.height):
@@ -155,7 +155,7 @@ def main():
     save_image(image_array)
 
 
-def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
+def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, depth):
     if depth > 1:
         return
     # we subtract the camera position because we want the ray to start from the camera position
@@ -183,9 +183,9 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
             # ray is a 3D vector, sphere is a Sphere object which has a center point and a radius
             # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
             # the result (t) is the distance from the ray origin to the intersection point
-
-            coefficients = [1, np.dot(2 * ray, np.array(camera.position) - np.array(surface.position)),
-                            np.linalg.norm(np.array(camera.position) - np.array(
+            # TODO !!! maybe origin_point is incorrect here !!!
+            coefficients = [1, np.dot(2 * ray, np.array(origin_point) - np.array(surface.position)),
+                            np.linalg.norm(np.array(origin_point) - np.array(
                                 surface.position)) ** 2 - surface.radius ** 2]
             # !!! change to 0 from np.linalg.norm(np.array(camera.position) - np.array( surface.position)) ** 2 - surface.radius ** 2
             # in the third coefficient !!!
@@ -196,7 +196,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                 roots = np.roots(coefficients)
                 for t in roots:
                     if 0 < t < closest_intersection_distance:
-                        point_of_intersection = camera.position + t * ray
+                        point_of_intersection = origin_point + t * ray
                         closest_intersection_distance = t
                         closest_surface = (surface, point_of_intersection)
 
@@ -209,10 +209,10 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
             surface_normal = np.array(surface.normal)
             surface_normal = surface_normal / np.linalg.norm(surface_normal)
             if np.dot(ray, surface_normal) != 0:
-                t = -(np.dot(camera.position, surface_normal) - surface.offset) / np.dot(ray, surface_normal)
+                t = -(np.dot(origin_point, surface_normal) - surface.offset) / np.dot(ray, surface_normal)
                 # !!! maybe change normal to -normal !!!
                 if 0 < t < closest_intersection_distance:
-                    point_of_intersection = camera.position + t * ray
+                    point_of_intersection = origin_point + t * ray
                     closest_intersection_distance = t
                     closest_surface = (surface, point_of_intersection)
 
@@ -241,9 +241,9 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                 plane_normal = np.array(plane.normal)
                 plane_normal = plane_normal / np.linalg.norm(plane_normal)
                 if np.dot(ray, plane_normal) != 0:
-                    t = -(np.dot(camera.position, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
+                    t = -(np.dot(origin_point, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
                     if t > 0:
-                        point_of_intersection = camera.position + t * ray
+                        point_of_intersection = origin_point + t * ray
                         # check if the point is inside the cube
                         if center[0] - edge_length / 2 <= point_of_intersection[0] <= center[
                             0] + edge_length / 2 and center[1] - edge_length / 2 <= point_of_intersection[1] <= \
@@ -307,7 +307,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
             normal = normal / np.linalg.norm(normal)
 
         # calculate the intersection to the camera
-        view = camera.position - closest_surface[1]
+        view = origin_point - closest_surface[1]
         view = view / np.linalg.norm(view)
 
         material_index = closest_surface[0].material_index
@@ -336,25 +336,82 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                 # ( % of rays that hit the points from the light source)
                 shadow_intensity = light.shadow_intensity
                 # SigmaL(Kd(N.L)+Ks(V.R)^n)SLIL
+
+                intersection_to_light = light.position - closest_surface[1]
+                intersection_to_light = intersection_to_light / np.linalg.norm(intersection_to_light)
+
+                intersection_to_reflected_light = 2 * np.dot(intersection_to_light,
+                                                             normal) * normal - intersection_to_light
+                intersection_to_reflected_light = intersection_to_reflected_light / np.linalg.norm(
+                    intersection_to_reflected_light)
+
+                reflected_ray = ray - 2 * np.dot(ray, normal) * normal
+                reflected_ray = reflected_ray / np.linalg.norm(reflected_ray)
+
+                plane_offset = np.dot(-intersection_to_light, light.position)
+
+                light_plane = InfinitePlane(plane_offset, -intersection_to_light, 1)
+
+                bounding_box_width = light.radius / math.sqrt(2)
+
+                """
+                # calculate the center of the image (Pc)
+                camera.look_at = camera.look_at / np.linalg.norm(camera.look_at)
+                camera.up_vector = camera.up_vector / np.linalg.norm(camera.up_vector)
+                image_center = camera.position + np.array(camera.look_at) * camera.screen_distance
+            
+                # calculate Vright and Vup
+                v_right = np.cross(camera.look_at, camera.up_vector)
+                v_right = v_right / np.linalg.norm(v_right)
+                v_up = np.cross(v_right, camera.look_at)
+                v_up = v_up / np.linalg.norm(v_up)
+                """
+
+                """
+                 ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
+                    i - math.floor(args.height / 2)) - camera.position
+                 ray = ray / np.linalg.norm(ray)
+                """
+                grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
+                light_v_right = np.random.randn(3)  # take a random vector
+                light_v_right = light_v_right.astype(np.float64)  # convert to float64 explicitly
+
+                dot_product = light_v_right.dot(intersection_to_light)
+                real_dot_product = np.real(dot_product)  # Extract the real part of the dot product result
+
+                light_v_right -= real_dot_product * intersection_to_light / np.linalg.norm(intersection_to_light) ** 2
+                light_v_right /= np.linalg.norm(light_v_right)  # normalize it
+                light_v_up = np.cross(intersection_to_light, light_v_right)
+                light_v_up /= np.linalg.norm(light_v_up)
+
+                shadow_rays_count = 0
+
+                for x in range(int(scene_settings.root_number_shadow_rays)):
+                    for y in range(int(scene_settings.root_number_shadow_rays)):
+
+                        point_on_grid = light.position - light_v_right * grid_ratio * (
+                                x - math.floor(scene_settings.root_number_shadow_rays / 2)) - light_v_up * grid_ratio * (y - math.floor(
+                                    scene_settings.root_number_shadow_rays) / 2) + ((
+                                           np.random.rand() - 0.5) * grid_ratio * light_v_right + (
+                                           np.random.rand() - 0.5) * grid_ratio * light_v_up)
+                        grid_ray = - (point_on_grid - closest_surface[1])
+                        grid_ray = grid_ray / np.linalg.norm(grid_ray)
+                        # TODO make the function ray_tracer_shadow return whether we hit the correct point of intersection
+                        # TODO calculate how many times we hit the correct point of intersection
+
+                        is_hit = ray_tracer_shadow(grid_ray, objects, closest_surface[1], point_on_grid)
+                        if is_hit:
+                            shadow_rays_count += 1
+                # print(shadow_rays_count)
+                light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
+                            shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
+
                 for color in range(3):
-                    intersection_to_light = light.position - closest_surface[1]
-                    intersection_to_light = intersection_to_light / np.linalg.norm(intersection_to_light)
-
-                    intersection_to_reflected_light = 2 * np.dot(intersection_to_light,
-                                                                 normal) * normal - intersection_to_light
-                    intersection_to_reflected_light = intersection_to_reflected_light / np.linalg.norm(
-                        intersection_to_reflected_light)
-
-                    reflected_ray = ray - 2 * np.dot(ray, normal) * normal
-                    reflected_ray = reflected_ray / np.linalg.norm(reflected_ray)
-
-
                     # !!! intersection to light might be a bad calculation !!!
 
                     diffusion_and_specular = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
                                               material_specular[color] * np.dot(view,
-                                                                                intersection_to_reflected_light) ** surface_material.shininess)
-                    # !!! * (1 - shadow_intensity) * light_intensity !!!
+                                                                                intersection_to_reflected_light) ** surface_material.shininess) * light_intensity
                     # TODO shininess is makes the result way too high
                     # TODO if its 1- shadow_intensity or  just shadow_intensity
                     # TODO also maybe we need to add an if statement for this case
@@ -367,15 +424,125 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, camera, depth):
                     """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
 
                     image_array[i, j, color] += scene_settings.background_color[
-                                                    color] * surface_material.transparency + diffusion_and_specular * \
+                                                    color] * surface_material.transparency + (diffusion_and_specular * \
                                                 (1 - surface_material.transparency) * light.color[color] * 255 + \
-                                                surface_material.reflection_color[color]
+                                                surface_material.reflection_color[color])
                     # print("diffusion and specular", diffusion_and_specular)
 
                     # !!! changed the multiplication by * light.color to inside the final color calculation
 
-                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, camera, depth + 1)
+                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, origin_point, depth + 1)
+
+
+def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
+    closest_surface = (None, float('inf'))
+    closest_intersection_distance = float('inf')
+    point_of_intersection = None
+    for surface in objects:
+        # check if the surface is a sphere
+        if type(surface) in [Light, Material]:
+            pass
+        elif type(surface) == Sphere:
+            """
+            Solve quadratic equation:
+            at2 + bt + c = 0
+            where:
+                a = 1
+                b = 2 *(V • (P0 - O))
+                c = ||P0 - O||****2 - r**2 (= 0 ?)
+            """
+
+            # ray is a 3D vector, sphere is a Sphere object which has a center point and a radius
+            # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
+            # the result (t) is the distance from the ray origin to the intersection point
+
+            coefficients = [1, np.dot(2 * ray, np.array(point_on_grid) - np.array(surface.position)),
+                            np.linalg.norm(np.array(point_on_grid) - np.array(surface.position)) ** 2 - surface.radius ** 2]
+            # !!! change to 0 from np.linalg.norm(np.array(camera.position) - np.array( surface.position)) ** 2 - surface.radius ** 2
+            # in the third coefficient !!!
+            # get only real roots
+            # check if the discriminant is negative, if so, there are no real roots
+            discriminant = coefficients[1] ** 2 - 4 * coefficients[0] * coefficients[2]
+            if discriminant >= 0:
+                roots = np.roots(coefficients)
+                for t in roots:
+                    if 0 < t < closest_intersection_distance:
+                        point_of_intersection = point_on_grid + t * ray
+                        closest_intersection_distance = t
+                        closest_surface = (surface, point_of_intersection)
+
+        elif type(surface) == InfinitePlane:
+            """
+            t = -(P0 • N - d) / (V • N)
+            """
+            # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
+            # and we avoid division by zero
+            surface_normal = np.array(surface.normal)
+            surface_normal = surface_normal / np.linalg.norm(surface_normal)
+            if np.dot(ray, surface_normal) != 0:
+                t = -(np.dot(point_on_grid, surface_normal) - surface.offset) / np.dot(ray, surface_normal)
+                # !!! maybe change normal to -normal !!!
+                if 0 < t < closest_intersection_distance:
+                    point_of_intersection = point_on_grid + t * ray
+                    closest_intersection_distance = t
+                    closest_surface = (surface, point_of_intersection)
+
+        elif type(surface) == Cube:
+            # we will use the slab method, we know the cube is axis aligned, we can check each axis separately
+            # we will create 6 planes, one for each side of the cube, and check if the ray intersects with them
+            # instead of creating objects for each plane, we will use the plane equation:
+            # ax + by + cz + d = 0
+            # where a, b, c are the normal vector of the plane, and d is the offset
+            # we will use the normal vector and the offset to create the planes
+            center = surface.position
+            edge_length = surface.scale
+            # infinite planes are defined by (normal, offset, material)
+            plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, None)
+            plane2 = InfinitePlane(np.array([-1, 0, 0]), -center[0] + edge_length / 2, None)
+            plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, None)
+            plane4 = InfinitePlane(np.array([0, -1, 0]), -center[1] + edge_length / 2, None)
+            plane5 = InfinitePlane(np.array([0, 0, 1]), center[2] + edge_length / 2, None)
+            plane6 = InfinitePlane(np.array([0, 0, -1]), -center[2] + edge_length / 2, None)
+
+            planes = [plane1, plane2, plane3, plane4, plane5, plane6]
+
+            for plane in planes:
+                # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
+                # and we avoid division by zero
+                plane_normal = np.array(plane.normal)
+                plane_normal = plane_normal / np.linalg.norm(plane_normal)
+                if np.dot(ray, plane_normal) != 0:
+                    t = -(np.dot(point_on_grid, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
+                    if t > 0:
+                        point_of_intersection = point_on_grid + t * ray
+                        # check if the point is inside the cube
+                        if center[0] - edge_length / 2 <= point_of_intersection[0] <= center[
+                            0] + edge_length / 2 and center[1] - edge_length / 2 <= point_of_intersection[1] <= \
+                                center[1] + edge_length / 2 and center[2] - edge_length / 2 <= \
+                                point_of_intersection[2] <= center[2] + edge_length / 2:
+                            if 0 < t < closest_intersection_distance:
+                                closest_intersection_distance = t
+                                closest_surface = (surface, point_of_intersection)
+    #print(point_of_intersection==original_intersection_point)
+    # print("poi :", closest_surface[1], "oip :", original_intersection_point)
+
+    is_hit = True
+    for coord in range(3):
+        if abs(closest_surface[1][coord] - original_intersection_point[coord]) > 0.000001:
+            # TODO !!! maybe less zeros in the threshold !!!
+            is_hit = False
+            break
+
+    return is_hit
+
+
+    # if np.array_equal(closest_surface[1], original_intersection_point):
+    #     return True
+    # else:
+    #     return False
 
 
 if __name__ == '__main__':
     main()
+
+# TODO !!! change camera.position to the actual point from which the ray is casted in the recursive process !!!
