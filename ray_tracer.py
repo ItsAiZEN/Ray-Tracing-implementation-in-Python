@@ -156,7 +156,7 @@ def main():
 
 
 def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, depth):
-    if depth > 1:
+    if depth > 2:
         return np.array([0, 0, 0])
     # we subtract the camera position because we want the ray to start from the camera position
     # !!! maybe subtracting the camera position is wrong !!! #
@@ -352,67 +352,68 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 reflected_ray = ray - 2 * np.dot(ray, normal) * normal
                 reflected_ray = reflected_ray / np.linalg.norm(reflected_ray)
 
-                plane_offset = np.dot(-intersection_to_light, light.position)
+                # plane_offset = np.dot(-intersection_to_light, light.position)
+                #
+                # light_plane = InfinitePlane(plane_offset, -intersection_to_light, 1)
+                #
+                # bounding_box_width = light.radius / math.sqrt(2)
+                # #
+                # """
+                # # calculate the center of the image (Pc)
+                # camera.look_at = camera.look_at / np.linalg.norm(camera.look_at)
+                # camera.up_vector = camera.up_vector / np.linalg.norm(camera.up_vector)
+                # image_center = camera.position + np.array(camera.look_at) * camera.screen_distance
+                #
+                # # calculate Vright and Vup
+                # v_right = np.cross(camera.look_at, camera.up_vector)
+                # v_right = v_right / np.linalg.norm(v_right)
+                # v_up = np.cross(v_right, camera.look_at)
+                # v_up = v_up / np.linalg.norm(v_up)
+                # """
+                #
+                # """
+                #  ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
+                #     i - math.floor(args.height / 2)) - camera.position
+                #  ray = ray / np.linalg.norm(ray)
+                # """
+                # grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
+                # light_v_right = np.random.randn(3)  # take a random vector
+                # light_v_right = light_v_right.astype(np.complex128)  # convert to complex128 explicitly
+                #
+                # dot_product = light_v_right.dot(-intersection_to_light)
+                # light_v_right -= dot_product.real * intersection_to_light / np.linalg.norm(-intersection_to_light) ** 2
+                # light_v_right /= np.linalg.norm(light_v_right)  # normalize it
+                # light_v_up = np.cross(-intersection_to_light, light_v_right)
+                # light_v_up /= np.linalg.norm(light_v_up)
+                #
+                # shadow_rays_count = 0
+                #
+                # for x in range(int(scene_settings.root_number_shadow_rays)):
+                #     for y in range(int(scene_settings.root_number_shadow_rays)):
+                #
+                #         point_on_grid = light.position - light_v_right * grid_ratio * (
+                #                 x - math.floor(scene_settings.root_number_shadow_rays / 2)) - light_v_up * grid_ratio * (y - math.floor(
+                #                     scene_settings.root_number_shadow_rays) / 2) + ((
+                #                            np.random.rand() - 0.5) * grid_ratio * light_v_right + (
+                #                            np.random.rand() - 0.5) * grid_ratio * light_v_up)
+                #         grid_ray = - (point_on_grid - closest_surface[1])
+                #         grid_ray = grid_ray / np.linalg.norm(grid_ray)
+                #         # TODO make the function ray_tracer_shadow return whether we hit the correct point of intersection
+                #         # TODO calculate how many times we hit the correct point of intersection
+                #
+                #         is_hit = ray_tracer_shadow(grid_ray, objects, closest_surface[1], point_on_grid)
+                #         if is_hit:
+                #             shadow_rays_count += 1
+                # # print(shadow_rays_count)
+                # light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
+                #             shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
 
-                light_plane = InfinitePlane(plane_offset, -intersection_to_light, 1)
-
-                bounding_box_width = light.radius / math.sqrt(2)
-
-                """
-                # calculate the center of the image (Pc)
-                camera.look_at = camera.look_at / np.linalg.norm(camera.look_at)
-                camera.up_vector = camera.up_vector / np.linalg.norm(camera.up_vector)
-                image_center = camera.position + np.array(camera.look_at) * camera.screen_distance
-            
-                # calculate Vright and Vup
-                v_right = np.cross(camera.look_at, camera.up_vector)
-                v_right = v_right / np.linalg.norm(v_right)
-                v_up = np.cross(v_right, camera.look_at)
-                v_up = v_up / np.linalg.norm(v_up)
-                """
-
-                """
-                 ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
-                    i - math.floor(args.height / 2)) - camera.position
-                 ray = ray / np.linalg.norm(ray)
-                """
-                grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
-                light_v_right = np.random.randn(3)  # take a random vector
-                light_v_right = light_v_right.astype(np.complex128)  # convert to complex128 explicitly
-
-                dot_product = light_v_right.dot(-intersection_to_light)
-                light_v_right -= dot_product.real * intersection_to_light / np.linalg.norm(-intersection_to_light) ** 2
-                light_v_right /= np.linalg.norm(light_v_right)  # normalize it
-                light_v_up = np.cross(-intersection_to_light, light_v_right)
-                light_v_up /= np.linalg.norm(light_v_up)
-
-                shadow_rays_count = 0
-
-                for x in range(int(scene_settings.root_number_shadow_rays)):
-                    for y in range(int(scene_settings.root_number_shadow_rays)):
-
-                        point_on_grid = light.position - light_v_right * grid_ratio * (
-                                x - math.floor(scene_settings.root_number_shadow_rays / 2)) - light_v_up * grid_ratio * (y - math.floor(
-                                    scene_settings.root_number_shadow_rays) / 2) + ((
-                                           np.random.rand() - 0.5) * grid_ratio * light_v_right + (
-                                           np.random.rand() - 0.5) * grid_ratio * light_v_up)
-                        grid_ray = - (point_on_grid - closest_surface[1])
-                        grid_ray = grid_ray / np.linalg.norm(grid_ray)
-                        # TODO make the function ray_tracer_shadow return whether we hit the correct point of intersection
-                        # TODO calculate how many times we hit the correct point of intersection
-
-                        is_hit = ray_tracer_shadow(grid_ray, objects, closest_surface[1], point_on_grid)
-                        if is_hit:
-                            shadow_rays_count += 1
-                # print(shadow_rays_count)
-                light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
-                            shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
-
+                light_intensity = 1
                 # !!! intersection to light might be a bad calculation !!!
 
                 diffusion_and_specular = (np.array(material_diffuse) * np.dot(normal, intersection_to_light) + \
-                                            np.array(material_specular) * np.dot(view,
-                                        intersection_to_reflected_light) ** surface_material.shininess) * light_intensity * light.specular_intensity
+                                          np.array(material_specular) * np.dot(view,
+                                                                               intersection_to_reflected_light) ** surface_material.shininess) * light_intensity * light.specular_intensity
 
                 # TODO shininess is makes the result way too high
                 # TODO if its 1- shadow_intensity or  just shadow_intensity
@@ -424,9 +425,15 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 # TODO maybe the color within the color formula instead of at the end
                 # formula 1/(a + b*d + c*d^2)?
                 """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
-                recursion_color = ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, origin_point, depth + 1)
-                return_color += np.array(scene_settings.background_color) * np.array(surface_material.transparency) + np.array(diffusion_and_specular) * \
-                                            (1 - surface_material.transparency) * np.array(light.color) * 255 + np.array(surface_material.reflection_color) * recursion_color
+
+
+                # TODO origin_point should be changed to point of intersection maybe?
+
+                return_color += np.array(diffusion_and_specular) * \
+                                (1 - surface_material.transparency) * np.array(light.color) * 255
+
+        recursion_color = ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, closest_surface[1], depth + 1)
+        return_color += 255 * np.array(scene_settings.background_color) * np.array(surface_material.transparency) + np.array(surface_material.reflection_color) * recursion_color
 
         if depth == 1:
             image_array[i, j] = return_color
@@ -434,9 +441,9 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
         # TODO fix recursion (make the function return the color in each depth and make them stack)
         return return_color
 
-                    # print("diffusion and specular", diffusion_and_specular)
+        # print("diffusion and specular", diffusion_and_specular)
 
-                    # !!! changed the multiplication by * light.color to inside the final color calculation
+        # !!! changed the multiplication by * light.color to inside the final color calculation
 
 
 
