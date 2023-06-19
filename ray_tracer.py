@@ -156,8 +156,8 @@ def main():
 
 
 def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, depth):
-    if depth > 1:
-        return
+    if depth > 3:
+        return [0, 0, 0]
     # we subtract the camera position because we want the ray to start from the camera position
     # !!! maybe subtracting the camera position is wrong !!! #
 
@@ -260,7 +260,9 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
 
     # if the ray intersects with a surface
     if closest_surface[0] is None:
-        image_array[i][j] += scene_settings.background_color
+        if depth == 1:
+            image_array[i][j] = scene_settings.background_color * 255
+        return scene_settings.background_color * 255
     else:
         # print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ",
         #      closest_intersection_distance)  # !!! good for debugging !!!
@@ -403,7 +405,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 # print(shadow_rays_count)
                 light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
                             shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
-
+                return_color = np.zeros(3)
                 for color in range(3):
                     # !!! intersection to light might be a bad calculation !!!
 
@@ -421,15 +423,22 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                     # formula 1/(a + b*d + c*d^2)?
                     """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
 
-                    image_array[i, j, color] += scene_settings.background_color[
+                    return_color[color] = scene_settings.background_color[
                                                     color] * surface_material.transparency + (diffusion_and_specular * \
-                                                (1 - surface_material.transparency) * light.color[color] * 255 + \
-                                                surface_material.reflection_color[color])
+                                                (1 - surface_material.transparency) *
+                                                light.color[color] * 255 +
+                                                surface_material.reflection_color[color] *
+                                                ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, origin_point, depth + 1)[color])
+                    image_array[i, j, color] = return_color[color]
+
+                    # TODO fix recursion (make the function return the color in each depth and make them stack)
+
+                return return_color
+
                     # print("diffusion and specular", diffusion_and_specular)
 
                     # !!! changed the multiplication by * light.color to inside the final color calculation
 
-                    ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, origin_point, depth + 1)
 
 
 def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
