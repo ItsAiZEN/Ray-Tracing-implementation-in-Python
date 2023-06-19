@@ -56,6 +56,7 @@ def save_image(image_array):
     # Save the image to a file
     image.save("scenes/Spheres.png")
 
+
 def main():
     parser = argparse.ArgumentParser(description='Python Ray Tracer')
     parser.add_argument('scene_file', type=str, help='Path to the scene file')
@@ -79,15 +80,14 @@ def main():
 
     ratio = camera.screen_width / args.width
 
-    for i in range(args.width):
-        for j in range(args.height):
+    for i in range(args.height):
+        for j in range(args.width):
             ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
 
             ray_tracer(ray, i, j, image_array, objects, scene_settings, camera.position, 1)
 
-    # # Dummy result
     for i in range(args.height):
         for j in range(args.width):
             for k in range(3):
@@ -162,8 +162,6 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                             if 0.00001 < t < closest_intersection_distance:
                                 closest_intersection_distance = t
                                 closest_surface = (surface, point_of_intersection)
-
-
 
     if closest_surface[0] is None:
         if depth == 1:
@@ -245,20 +243,15 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 reflected_ray = ray - 2 * np.dot(ray, normal) * normal
                 reflected_ray = reflected_ray / np.linalg.norm(reflected_ray)
 
-                plane_offset = np.dot(-intersection_to_light, light.position)
-
-                light_plane = InfinitePlane(plane_offset, -intersection_to_light, 1)
-
                 bounding_box_width = light.radius / math.sqrt(2)
 
-
                 grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
-                light_v_right = np.random.randn(3)  # take a random vector
-                light_v_right = light_v_right.astype(np.complex128)  # convert to complex128 explicitly
+                light_v_right = np.random.randn(3)
+                light_v_right = light_v_right
 
                 dot_product = light_v_right.dot(-intersection_to_light)
                 light_v_right -= dot_product.real * intersection_to_light / np.linalg.norm(-intersection_to_light) ** 2
-                light_v_right /= np.linalg.norm(light_v_right)  # normalize it
+                light_v_right /= np.linalg.norm(light_v_right)
                 light_v_up = np.cross(-intersection_to_light, light_v_right)
                 light_v_up /= np.linalg.norm(light_v_up)
 
@@ -275,10 +268,10 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                         grid_ray = - (point_on_grid - closest_surface[1])
                         grid_ray = grid_ray / np.linalg.norm(grid_ray)
 
-
                         is_hit = ray_tracer_shadow(grid_ray, objects, closest_surface[1], point_on_grid)
                         if is_hit:
                             shadow_rays_count += 1
+
                 light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
                             shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
 
@@ -297,23 +290,22 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
         return return_color
 
 
-
 def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
     closest_surface = (None, float('inf'))
     closest_intersection_distance = float('inf')
     point_of_intersection = None
     for surface in objects:
-        # check if the surface is a sphere
         if type(surface) in [Light, Material]:
             pass
         elif type(surface) == Sphere:
 
             coefficients = [1, np.dot(2 * ray, np.array(point_on_grid) - np.array(surface.position)),
-                            np.linalg.norm(np.array(point_on_grid) - np.array(surface.position)) ** 2 - surface.radius ** 2]
+                            np.linalg.norm(np.array(point_on_grid) - np.array(
+                                surface.position)) ** 2 - surface.radius ** 2]
 
-            discriminant = coefficients[1] ** 2 - 4 * coefficients[0] * coefficients[2]
+            discriminant = (coefficients[1] ** 2) - (4 * coefficients[0] * coefficients[2])
             if discriminant >= 0:
-                roots = np.roots(coefficients)
+                roots = [(-coefficients[1] - math.sqrt(discriminant)) / (2 * coefficients[0]), ( -coefficients[1] + math.sqrt(discriminant)) / (2 * coefficients[0])]
                 for t in roots:
                     if 0.00001 < t < closest_intersection_distance:
                         point_of_intersection = point_on_grid + t * ray
@@ -377,3 +369,10 @@ if __name__ == '__main__':
     main()
     end = time.time()
     print("time :", end - start)
+
+
+# TODO: check if some of the changes we did in ray_tracer should also be done in ray_tracer_shadow
+# TODO: comments and documentation
+# TODO: improve performance
+# TODO: transparency bonus
+# TODO: maybe change "epsilon" (0.00001) to a different value, maybe 0.01 or 0.001
