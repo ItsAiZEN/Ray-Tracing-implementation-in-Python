@@ -156,8 +156,8 @@ def main():
 
 
 def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, depth):
-    if depth > 3:
-        return [0, 0, 0]
+    if depth > 1:
+        return np.array([0, 0, 0])
     # we subtract the camera position because we want the ray to start from the camera position
     # !!! maybe subtracting the camera position is wrong !!! #
 
@@ -261,8 +261,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
     # if the ray intersects with a surface
     if closest_surface[0] is None:
         if depth == 1:
-            image_array[i][j] = scene_settings.background_color * 255
-        return scene_settings.background_color * 255
+            image_array[i][j] = np.array(scene_settings.background_color) * 255
+        return np.array(scene_settings.background_color) * 255
     else:
         # print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ",
         #      closest_intersection_distance)  # !!! good for debugging !!!
@@ -324,6 +324,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
 
         material_diffuse = surface_material.diffuse_color
         material_specular = surface_material.specular_color
+        return_color = np.zeros(3)
+
         for light in objects:
             if type(light) is not Light:
                 continue
@@ -405,35 +407,32 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 # print(shadow_rays_count)
                 light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
                             shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
-                return_color = np.zeros(3)
-                for color in range(3):
-                    # !!! intersection to light might be a bad calculation !!!
 
-                    diffusion_and_specular = (material_diffuse[color] * np.dot(normal, intersection_to_light) + \
-                                              material_specular[color] * np.dot(view,
-                                                                                intersection_to_reflected_light) ** surface_material.shininess) * light_intensity
-                    # TODO shininess is makes the result way too high
-                    # TODO if its 1- shadow_intensity or  just shadow_intensity
-                    # TODO also maybe we need to add an if statement for this case
+                # !!! intersection to light might be a bad calculation !!!
 
-                    # TODO calculate the light intensity based on the distance from the light source with the
-                    # TODO add relevant calculation for specular intensity and specular color together
-                    # or maybe just update the color and specular color and diffuse beforehand
-                    # TODO maybe the color within the color formula instead of at the end
-                    # formula 1/(a + b*d + c*d^2)?
-                    """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
+                diffusion_and_specular = (np.array(material_diffuse) * np.dot(normal, intersection_to_light) + \
+                                            np.array(material_specular) * np.dot(view,
+                                        intersection_to_reflected_light) ** surface_material.shininess) * light_intensity * light.specular_intensity
 
-                    return_color[color] = scene_settings.background_color[
-                                                    color] * surface_material.transparency + (diffusion_and_specular * \
-                                                (1 - surface_material.transparency) *
-                                                light.color[color] * 255 +
-                                                surface_material.reflection_color[color] *
-                                                ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, origin_point, depth + 1)[color])
-                    image_array[i, j, color] = return_color[color]
+                # TODO shininess is makes the result way too high
+                # TODO if its 1- shadow_intensity or  just shadow_intensity
+                # TODO also maybe we need to add an if statement for this case
 
-                    # TODO fix recursion (make the function return the color in each depth and make them stack)
+                # TODO calculate the light intensity based on the distance from the light source with the
+                # TODO add relevant calculation for specular intensity and specular color together
+                # or maybe just update the color and specular color and diffuse beforehand
+                # TODO maybe the color within the color formula instead of at the end
+                # formula 1/(a + b*d + c*d^2)?
+                """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
+                recursion_color = ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, origin_point, depth + 1)
+                return_color += np.array(scene_settings.background_color) * np.array(surface_material.transparency) + np.array(diffusion_and_specular) * \
+                                            (1 - surface_material.transparency) * np.array(light.color) * 255 + np.array(surface_material.reflection_color) * recursion_color
 
-                return return_color
+        if depth == 1:
+            image_array[i, j] = return_color
+
+        # TODO fix recursion (make the function return the color in each depth and make them stack)
+        return return_color
 
                     # print("diffusion and specular", diffusion_and_specular)
 
