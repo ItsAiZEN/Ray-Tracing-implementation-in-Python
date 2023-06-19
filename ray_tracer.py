@@ -56,44 +56,6 @@ def save_image(image_array):
     # Save the image to a file
     image.save("scenes/Spheres.png")
 
-
-"""
-The general process of ray tracing is:
-
-1:
-Shoot a ray through each pixel in the image. For each pixel, you should:
-1.1. Discover the location of the pixel on the camera’s screen (using camera parameters).
-1.2. Construct a ray from the camera through that pixel.
-
-2:
-Check the intersection of the ray with all surfaces in the scene 
-(you can add optimizations such as BSP trees if you wish but they are not mandatory).
-
-3:
-Find the nearest intersection of the ray. This is the surface that will be seen in the image.
-
-4:
-Compute the color of the surface:
-4.1. Go over each light in the scene.
-4.2. Add the value it induces on the surface.
-
-5:
-Find out whether the light hits the surface or not:
-5.1. Shoot rays from the light towards the surface.
-5.2. Find whether the ray intersects any other surfaces before the required surface - if so,
- the surface is occluded from the light and the light does not affect it
-  (or partially affects it because of the shadow intensity parameter).
-
-6:
-Produce soft shadows, as explained below:
-6.1. Shoot several rays from the proximity of the light to the surface.
-6.2. Find out how many of them hit the required surface.
-"""
-
-"""output color = (background color) · transparency + (diffuse + specular)·(1−transparency) + (reflection color)"""
-"""light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
-
-
 def main():
     parser = argparse.ArgumentParser(description='Python Ray Tracer')
     parser.add_argument('scene_file', type=str, help='Path to the scene file')
@@ -104,41 +66,21 @@ def main():
 
     # Parse the scene file
     camera, scene_settings, objects = parse_scene_file(args.scene_file)
-
-    # TODO: Implement the ray tracer
-
     image_array = np.zeros((args.width, args.height, 3))
 
-    # Step 1:
-    # Step 1.1. Discover the location of the pixel on the camera’s screen (using camera parameters).
-    # Step 1.2. Construct a ray from the camera through that pixel.
-    # we have the following parameters: position, look_at, up_vector, screen_distance, screen_width
-
-    # calculate the center of the image (Pc)
     camera.look_at = camera.look_at / np.linalg.norm(camera.look_at)
     camera.up_vector = camera.up_vector / np.linalg.norm(camera.up_vector)
     image_center = camera.position + np.array(camera.look_at) * camera.screen_distance
 
-    # calculate Vright and Vup
     v_right = np.cross(camera.look_at, camera.up_vector)
     v_right = v_right / np.linalg.norm(v_right)
     v_up = np.cross(v_right, camera.look_at)
     v_up = v_up / np.linalg.norm(v_up)
 
-    # calculate the ratio between the screen width and the image width (R)
     ratio = camera.screen_width / args.width
 
     for i in range(args.width):
         for j in range(args.height):
-            # Step 1:
-            # Step 1.1. Discover the location of the pixel on the camera’s screen (using camera parameters).
-            # Step 1.2. Construct a ray from the camera through that pixel.
-            # we have the following parameters: position, look_at, up_vector, screen_distance, screen_width
-
-            # calculate the ray direction (R)
-
-            # !!! we change the placement of i and j according to the presentation !!! #
-
             ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
                     i - math.floor(args.height / 2)) - camera.position
             ray = ray / np.linalg.norm(ray)
@@ -150,7 +92,6 @@ def main():
         for j in range(args.width):
             for k in range(3):
                 image_array[i][j][k] = int(image_array[i][j][k])
-    # print(image_array)
     image_array = image_array.clip(0, 255)
 
     # Save the output image
@@ -160,12 +101,6 @@ def main():
 def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, depth):
     if depth > scene_settings.max_recursions:
         return np.array([0, 0, 0])
-    # we subtract the camera position because we want the ray to start from the camera position
-    # !!! maybe subtracting the camera position is wrong !!! #
-
-    # Step 2 & 3:
-    # Check the intersection of the ray with all surfaces in the scene, then sift through the results for the
-    # closest intersection of the ray. This is the surface that will be seen in the image.
     closest_surface = (None, float('inf'))
     closest_intersection_distance = float('inf')
     for surface in objects:
@@ -173,26 +108,11 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
         if type(surface) in [Light, Material]:
             pass
         elif type(surface) == Sphere:
-            """
-            Solve quadratic equation:
-            at2 + bt + c = 0
-            where:
-                a = 1
-                b = 2 *(V • (P0 - O))
-                c = ||P0 - O||****2 - r**2 (= 0 ?)
-            """
 
-            # ray is a 3D vector, sphere is a Sphere object which has a center point and a radius
-            # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
-            # the result (t) is the distance from the ray origin to the intersection point
-            # TODO !!! maybe origin_point is incorrect here !!!
             coefficients = [1, np.dot(2 * ray, np.array(origin_point) - np.array(surface.position)),
                             np.linalg.norm(np.array(origin_point) - np.array(
                                 surface.position)) ** 2 - surface.radius ** 2]
-            # !!! change to 0 from np.linalg.norm(np.array(camera.position) - np.array( surface.position)) ** 2 - surface.radius ** 2
-            # in the third coefficient !!!
-            # get only real roots
-            # check if the discriminant is negative, if so, there are no real roots
+
             discriminant = (coefficients[1] ** 2) - (4 * coefficients[0] * coefficients[2])
             if discriminant >= 0:
                 roots = [(-coefficients[1] - math.sqrt(discriminant)) / (2 * coefficients[0]), ( -coefficients[1] + math.sqrt(discriminant)) / (2 * coefficients[0])]
@@ -203,11 +123,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                         closest_surface = (surface, point_of_intersection)
 
         elif type(surface) == InfinitePlane:
-            """
-            t = -(P0 • N - d) / (V • N)
-            """
-            # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
-            # and we avoid division by zero
+
             surface_normal = np.array(surface.normal)
             surface_normal = surface_normal / np.linalg.norm(surface_normal)
             if np.dot(ray, surface_normal) != 0:
@@ -218,15 +134,9 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                     closest_surface = (surface, point_of_intersection)
 
         elif type(surface) == Cube:
-            # we will use the slab method, we know the cube is axis aligned, we can check each axis separately
-            # we will create 6 planes, one for each side of the cube, and check if the ray intersects with them
-            # instead of creating objects for each plane, we will use the plane equation:
-            # ax + by + cz + d = 0
-            # where a, b, c are the normal vector of the plane, and d is the offset
-            # we will use the normal vector and the offset to create the planes
+
             center = surface.position
             edge_length = surface.scale
-            # infinite planes are defined by (normal, offset, material)
             plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, None)
             plane2 = InfinitePlane(np.array([-1, 0, 0]), -center[0] + edge_length / 2, None)
             plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, None)
@@ -237,8 +147,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
             planes = [plane1, plane2, plane3, plane4, plane5, plane6]
 
             for plane in planes:
-                # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
-                # and we avoid division by zero
+
                 plane_normal = np.array(plane.normal)
                 plane_normal = plane_normal / np.linalg.norm(plane_normal)
                 if np.dot(ray, plane_normal) != 0:
@@ -254,20 +163,13 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                                 closest_intersection_distance = t
                                 closest_surface = (surface, point_of_intersection)
 
-    # Step 4:
-    # Calculate the color of the pixel based on the surface properties and the light sources in the scene.
-    # 4.1. Go over each light in the scene.
-    # 4.2. Add the value it induces on the surface.
 
-    # if the ray intersects with a surface
+
     if closest_surface[0] is None:
         if depth == 1:
             image_array[i][j] = np.array(scene_settings.background_color) * 255
         return np.array(scene_settings.background_color) * 255
     else:
-        # print(type(closest_surface[0]), "point: ", closest_surface[1], "distance: ",
-        #      closest_intersection_distance)  # !!! good for debugging !!!
-        # calculate the normal vector of the surface at the intersection point
         if type(closest_surface[0]) == Sphere:
             normal = closest_surface[1] - closest_surface[0].position
             normal = normal / np.linalg.norm(normal)
@@ -279,7 +181,6 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
         elif type(closest_surface[0]) == Cube:
             center = closest_surface[0].position
             edge_length = closest_surface[0].scale
-            # check which plane is the closest to the intersection point
             closet_plane = -1
             minimal_distance = float('inf')
             if abs(closest_surface[1][0] - center[0] + edge_length / 2) < minimal_distance:
@@ -309,7 +210,6 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 normal = np.array([0, 0, -1])
             normal = normal / np.linalg.norm(normal)
 
-        # calculate the intersection to the camera
         view = -(origin_point - closest_surface[1])
         view = view / np.linalg.norm(view)
 
@@ -331,15 +231,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
             if type(light) is not Light:
                 continue
             else:
-                # light_intensity = 1 / light.radius ** 2
-                # TODO calculate true light intensity
-                # we will calculate the light intensity by creating a grid relative to the location of the light
-                # and its radius, the grid will be scene_settings.root_number_shadow_rays wide, then we will
-                # calculate the intensity of the light by
-                # light intensity = (1− shadow intensity) * 1 + shadow intensity *
-                # ( % of rays that hit the points from the light source)
+
                 shadow_intensity = light.shadow_intensity
-                # SigmaL(Kd(N.L)+Ks(V.R)^n)SLIL
 
                 intersection_to_light = light.position - closest_surface[1]
                 intersection_to_light = intersection_to_light / np.linalg.norm(intersection_to_light)
@@ -357,25 +250,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 light_plane = InfinitePlane(plane_offset, -intersection_to_light, 1)
 
                 bounding_box_width = light.radius / math.sqrt(2)
-                #
-                """
-                # calculate the center of the image (Pc)
-                camera.look_at = camera.look_at / np.linalg.norm(camera.look_at)
-                camera.up_vector = camera.up_vector / np.linalg.norm(camera.up_vector)
-                image_center = camera.position + np.array(camera.look_at) * camera.screen_distance
 
-                # calculate Vright and Vup
-                v_right = np.cross(camera.look_at, camera.up_vector)
-                v_right = v_right / np.linalg.norm(v_right)
-                v_up = np.cross(v_right, camera.look_at)
-                v_up = v_up / np.linalg.norm(v_up)
-                """
 
-                """
-                 ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
-                    i - math.floor(args.height / 2)) - camera.position
-                 ray = ray / np.linalg.norm(ray)
-                """
                 grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
                 light_v_right = np.random.randn(3)  # take a random vector
                 light_v_right = light_v_right.astype(np.complex128)  # convert to complex128 explicitly
@@ -398,35 +274,17 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                                            np.random.rand() - 0.5) * grid_ratio * light_v_up)
                         grid_ray = - (point_on_grid - closest_surface[1])
                         grid_ray = grid_ray / np.linalg.norm(grid_ray)
-                        # TODO make the function ray_tracer_shadow return whether we hit the correct point of intersection
-                        # TODO calculate how many times we hit the correct point of intersection
+
 
                         is_hit = ray_tracer_shadow(grid_ray, objects, closest_surface[1], point_on_grid)
                         if is_hit:
                             shadow_rays_count += 1
-                # print(shadow_rays_count)
                 light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
                             shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
 
-                # !!! intersection to light might be a bad calculation !!!
                 diffusion_and_specular = (np.array(material_diffuse) * np.dot(normal, intersection_to_light) + \
                                           np.array(material_specular) * np.dot(view,
                                                                                intersection_to_reflected_light) ** surface_material.shininess) * light_intensity * light.specular_intensity
-
-
-                # TODO shininess is makes the result way too high
-                # TODO if its 1- shadow_intensity or  just shadow_intensity
-                # TODO also maybe we need to add an if statement for this case
-
-                # TODO calculate the light intensity based on the distance from the light source with the
-                # TODO add relevant calculation for specular intensity and specular color together
-                # or maybe just update the color and specular color and diffuse beforehand
-                # TODO maybe the color within the color formula instead of at the end
-                # formula 1/(a + b*d + c*d^2)?
-                """light intensity = (1− shadow intensity)*1 +shadow intensity*(% of rays that hit the points from the light source)"""
-
-
-                # TODO origin_point should be changed to point of intersection maybe?
 
                 return_color += np.array(diffusion_and_specular) * \
                                 (1 - surface_material.transparency) * np.array(light.color) * 255
@@ -436,12 +294,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
 
         if depth == 1:
             image_array[i, j] = return_color
-        # TODO fix recursion (make the function return the color in each depth and make them stack)
         return return_color
-
-        # print("diffusion and specular", diffusion_and_specular)
-
-        # !!! changed the multiplication by * light.color to inside the final color calculation
 
 
 
@@ -454,25 +307,10 @@ def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
         if type(surface) in [Light, Material]:
             pass
         elif type(surface) == Sphere:
-            """
-            Solve quadratic equation:
-            at2 + bt + c = 0
-            where:
-                a = 1
-                b = 2 *(V • (P0 - O))
-                c = ||P0 - O||****2 - r**2 (= 0 ?)
-            """
-
-            # ray is a 3D vector, sphere is a Sphere object which has a center point and a radius
-            # V is the ray direction, P0 is the ray origin, O is the sphere center, r is the sphere radius
-            # the result (t) is the distance from the ray origin to the intersection point
 
             coefficients = [1, np.dot(2 * ray, np.array(point_on_grid) - np.array(surface.position)),
                             np.linalg.norm(np.array(point_on_grid) - np.array(surface.position)) ** 2 - surface.radius ** 2]
-            # !!! change to 0 from np.linalg.norm(np.array(camera.position) - np.array( surface.position)) ** 2 - surface.radius ** 2
-            # in the third coefficient !!!
-            # get only real roots
-            # check if the discriminant is negative, if so, there are no real roots
+
             discriminant = coefficients[1] ** 2 - 4 * coefficients[0] * coefficients[2]
             if discriminant >= 0:
                 roots = np.roots(coefficients)
@@ -483,31 +321,22 @@ def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
                         closest_surface = (surface, point_of_intersection)
 
         elif type(surface) == InfinitePlane:
-            """
-            t = -(P0 • N - d) / (V • N)
-            """
-            # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
-            # and we avoid division by zero
+
             surface_normal = np.array(surface.normal)
             surface_normal = surface_normal / np.linalg.norm(surface_normal)
             if np.dot(ray, surface_normal) != 0:
                 t = -(np.dot(point_on_grid, surface_normal) - surface.offset) / np.dot(ray, surface_normal)
-                # !!! maybe change normal to -normal !!!
+
                 if 0.00001 < t < closest_intersection_distance:
                     point_of_intersection = point_on_grid + t * ray
                     closest_intersection_distance = t
                     closest_surface = (surface, point_of_intersection)
 
         elif type(surface) == Cube:
-            # we will use the slab method, we know the cube is axis aligned, we can check each axis separately
-            # we will create 6 planes, one for each side of the cube, and check if the ray intersects with them
-            # instead of creating objects for each plane, we will use the plane equation:
-            # ax + by + cz + d = 0
-            # where a, b, c are the normal vector of the plane, and d is the offset
-            # we will use the normal vector and the offset to create the planes
+
             center = surface.position
             edge_length = surface.scale
-            # infinite planes are defined by (normal, offset, material)
+
             plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, None)
             plane2 = InfinitePlane(np.array([-1, 0, 0]), -center[0] + edge_length / 2, None)
             plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, None)
@@ -518,15 +347,14 @@ def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
             planes = [plane1, plane2, plane3, plane4, plane5, plane6]
 
             for plane in planes:
-                # check if the ray is not parallel to the plane, otherwise there is no intersection, we can skip
-                # and we avoid division by zero
+
                 plane_normal = np.array(plane.normal)
                 plane_normal = plane_normal / np.linalg.norm(plane_normal)
                 if np.dot(ray, plane_normal) != 0:
                     t = -(np.dot(point_on_grid, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
                     if t > 0.00001:
                         point_of_intersection = point_on_grid + t * ray
-                        # check if the point is inside the cube
+
                         if center[0] - edge_length / 2 <= point_of_intersection[0] <= center[
                             0] + edge_length / 2 and center[1] - edge_length / 2 <= point_of_intersection[1] <= \
                                 center[1] + edge_length / 2 and center[2] - edge_length / 2 <= \
@@ -534,28 +362,18 @@ def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
                             if 0.00001 < t < closest_intersection_distance:
                                 closest_intersection_distance = t
                                 closest_surface = (surface, point_of_intersection)
-    #print(point_of_intersection==original_intersection_point)
-    # print("poi :", closest_surface[1], "oip :", original_intersection_point)
 
     is_hit = True
     for coord in range(3):
         if abs(closest_surface[1][coord] - original_intersection_point[coord]) > 0.00001:
-            # TODO !!! maybe less zeros in the threshold !!!
             is_hit = False
             break
 
     return is_hit
 
 
-    # if np.array_equal(closest_surface[1], original_intersection_point):
-    #     return True
-    # else:
-    #     return False
-
 if __name__ == '__main__':
     start = time.time()
     main()
     end = time.time()
     print("time :", end - start)
-
-# TODO !!! change camera.position to the actual point from which the ray is casted in the recursive process !!!
