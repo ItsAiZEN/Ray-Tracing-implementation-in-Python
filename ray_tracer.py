@@ -69,6 +69,7 @@ def main():
     camera, scene_settings, objects = parse_scene_file(args.scene_file)
     image_array = np.zeros((args.width, args.height, 3))
 
+    camera.look_at = np.array(camera.look_at) - np.array(camera.position)
     camera.look_at = camera.look_at / np.linalg.norm(camera.look_at)
     camera.up_vector = camera.up_vector / np.linalg.norm(camera.up_vector)
     image_center = camera.position + np.array(camera.look_at) * camera.screen_distance
