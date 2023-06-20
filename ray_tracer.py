@@ -244,12 +244,12 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 reflected_ray = ray - 2 * np.dot(ray, normal) * normal
                 reflected_ray = reflected_ray / np.linalg.norm(reflected_ray)
 
-                bounding_box_width = light.radius / math.sqrt(2)
+                bounding_box_width = light.radius
 
-                grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
+                grid_ratio = bounding_box_width / scene_settings.root_number_shadow_rays
 
                 light_v_right = np.random.randn(3)
-                light_v_right -= light_v_right.dot(-intersection_to_light) * (-intersection_to_light) / np.linalg.norm(-intersection_to_light) ** 2
+                light_v_right -= np.dot(light_v_right, -intersection_to_light) * (-intersection_to_light) / np.linalg.norm(-intersection_to_light) ** 2
                 light_v_right /= np.linalg.norm(light_v_right)
 
                 light_v_up = np.cross(-intersection_to_light, light_v_right)
@@ -371,8 +371,5 @@ if __name__ == '__main__':
     print("time :", end - start)
 
 
-# TODO: make a function for intersections and use it in ray_tracer and ray_tracer_shadow
 # TODO: comments and documentation
-# TODO: improve performance
 # TODO: transparency bonus
-# TODO: maybe change "epsilon" (0.00001) to a different value, maybe 0.01 or 0.001
