@@ -247,12 +247,11 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 bounding_box_width = light.radius / math.sqrt(2)
 
                 grid_ratio = 2 * bounding_box_width / scene_settings.root_number_shadow_rays
-                light_v_right = np.random.randn(3)
-                light_v_right = light_v_right
 
-                dot_product = light_v_right.dot(-intersection_to_light)
-                light_v_right -= dot_product.real * intersection_to_light / np.linalg.norm(-intersection_to_light) ** 2
+                light_v_right = np.random.randn(3)
+                light_v_right -= light_v_right.dot(-intersection_to_light) * (-intersection_to_light) / np.linalg.norm(-intersection_to_light) ** 2
                 light_v_right /= np.linalg.norm(light_v_right)
+
                 light_v_up = np.cross(-intersection_to_light, light_v_right)
                 light_v_up /= np.linalg.norm(light_v_up)
 
