@@ -164,6 +164,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                                 closest_intersection_distance = t
                                 closest_surface = (surface, point_of_intersection)
 
+# TODO maybe add thresholds
+
     if closest_surface[0] is None:
         if depth == 1:
             image_array[i][j] = np.array(scene_settings.background_color) * 255
