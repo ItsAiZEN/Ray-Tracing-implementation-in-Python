@@ -372,7 +372,7 @@ if __name__ == '__main__':
     print("time :", end - start)
 
 
-# TODO: check if some of the changes we did in ray_tracer should also be done in ray_tracer_shadow
+# TODO: make a function for intersections and use it in ray_tracer and ray_tracer_shadow
 # TODO: comments and documentation
 # TODO: improve performance
 # TODO: transparency bonus
