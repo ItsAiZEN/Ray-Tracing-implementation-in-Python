@@ -81,6 +81,8 @@ def main():
 
     ratio = camera.screen_width / args.width
 
+    start_time = time.time()
+
     for i in range(args.height):
         for j in range(args.width):
             ray = image_center - v_right * ratio * (j - math.floor(args.width / 2)) - v_up * ratio * (
@@ -88,6 +90,11 @@ def main():
             ray = ray / np.linalg.norm(ray)
 
             ray_tracer(ray, i, j, image_array, objects, scene_settings, camera.position, 1)
+
+            # print percentage of image rendered
+            if (i * args.width + j) % 1000 == 0:
+                print("Percentage of image rendered: {:.2f}%".format((i * args.width + j) / (args.width * args.height) * 100))
+                print("Time elapsed: {:.2f} seconds".format(time.time() - start_time))
 
     for i in range(args.height):
         for j in range(args.width):
@@ -116,7 +123,8 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
 
             discriminant = (coefficients[1] ** 2) - (4 * coefficients[0] * coefficients[2])
             if discriminant >= 0:
-                roots = [(-coefficients[1] - math.sqrt(discriminant)) / (2 * coefficients[0]), ( -coefficients[1] + math.sqrt(discriminant)) / (2 * coefficients[0])]
+                roots = [(-coefficients[1] - math.sqrt(discriminant)) / (2 * coefficients[0]),
+                         (-coefficients[1] + math.sqrt(discriminant)) / (2 * coefficients[0])]
                 for t in roots:
                     if 0.00001 < t < closest_intersection_distance:
                         point_of_intersection = origin_point + t * ray
@@ -136,41 +144,67 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
 
         elif type(surface) == Cube:
 
+            # # create planes for each side of the cube
+            # plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, surface.material_index)
+            # plane2 = InfinitePlane(np.array([-1, 0, 0]), center[0] + edge_length / 2, surface.material_index)
+            # plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, surface.material_index)
+            # plane4 = InfinitePlane(np.array([0, -1, 0]), center[1] + edge_length / 2, surface.material_index)
+            # plane5 = InfinitePlane(np.array([0, 0, 1]), center[2] + edge_length / 2, surface.material_index)
+            # plane6 = InfinitePlane(np.array([0, 0, -1]), center[2] + edge_length / 2, surface.material_index)
+            #
+            # planes = [plane1, plane2, plane3, plane4, plane5, plane6]
+            # t_list = []
+            #
+            # for plane in planes:
+            #
+            #     plane_normal = np.array(plane.normal)
+            #     plane_normal = plane_normal / np.linalg.norm(plane_normal)
+            #     # check if the ray is parallel to the plane
+            #     if np.dot(ray, plane_normal) != 0:
+            #         # calculate the distance between the origin point and the intersection point on the plane
+            #         t = -(np.dot(origin_point, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
+            #         t_list.append(t)
+            #         # !!! maybe change offset to -offset
+            #         if t > 0.00001:
+            #             point_of_intersection = origin_point + t * ray
+            #             # check if the point is inside the cube
+            #             if (center[0] - (edge_length / 2) - 0.00001 <= point_of_intersection[0] <= center[0] + (edge_length / 2) + 0.00001)\
+            #                 and \
+            #                 (center[1] - (edge_length / 2) - 0.00001 <= point_of_intersection[1] <= center[1] + (edge_length / 2) + 0.00001)\
+            #                 and \
+            #                 (center[2] - (edge_length / 2) - 0.00001 <= point_of_intersection[2] <= center[2] + (edge_length / 2) + 0.00001):
+            #                 # check if the intersection point is closer than the previous closest intersection point
+            #                 if 0.00001 < t < closest_intersection_distance:
+            #                     closest_intersection_distance = t
+            #                     closest_surface = (plane, point_of_intersection)
+
             center = surface.position
             edge_length = surface.scale
-            # create planes for each side of the cube
-            plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, surface.material_index)
-            plane2 = InfinitePlane(np.array([-1, 0, 0]), center[0] + edge_length / 2, surface.material_index)
-            plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, surface.material_index)
-            plane4 = InfinitePlane(np.array([0, -1, 0]), center[1] + edge_length / 2, surface.material_index)
-            plane5 = InfinitePlane(np.array([0, 0, 1]), center[2] + edge_length / 2, surface.material_index)
-            plane6 = InfinitePlane(np.array([0, 0, -1]), center[2] + edge_length / 2, surface.material_index)
 
-            planes = [plane1, plane2, plane3, plane4, plane5, plane6]
+            # Create a vector that represents the size of the sides of the cube
+            cube_size_vector = np.array([edge_length / 2, edge_length / 2, edge_length / 2])
 
-            for plane in planes:
+            # Calculate the exit points for the x-axis
+            min_exit = center - cube_size_vector
+            max_exit = center + cube_size_vector
 
-                plane_normal = np.array(plane.normal)
-                plane_normal = plane_normal / np.linalg.norm(plane_normal)
-                # check if the ray is parallel to the plane
-                if np.dot(ray, plane_normal) != 0:
-                    # calculate the distance between the origin point and the intersection point on the plane
-                    t = -(np.dot(origin_point, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
-                    # !!! maybe change offset to -offset
-                    if t > 0.00001:
-                        point_of_intersection = origin_point + t * ray
-                        # check if the point is inside the cube
-                        if (center[0] - (edge_length / 2) - 0.00001 <= point_of_intersection[0] <= center[0] + (edge_length / 2) + 0.00001)\
-                            and \
-                            (center[1] - (edge_length / 2) - 0.00001 <= point_of_intersection[1] <= center[1] + (edge_length / 2) + 0.00001)\
-                            and \
-                            (center[2] - (edge_length / 2) - 0.00001 <= point_of_intersection[2] <= center[2] + (edge_length / 2) + 0.00001):
-                            # check if the intersection point is closer than the previous closest intersection point
-                            if 0.00001 < t < closest_intersection_distance:
-                                closest_intersection_distance = t
-                                closest_surface = (plane, point_of_intersection)
+            x_min, x_max = sorted([(min_exit[0] - origin_point[0]) / ray[0], (max_exit[0] - origin_point[0]) / ray[0]])
+            y_min, y_max = sorted([(min_exit[1] - origin_point[1]) / ray[1], (max_exit[1] - origin_point[1]) / ray[1]])
+            z_min, z_max = sorted([(min_exit[2] - origin_point[2]) / ray[2], (max_exit[2] - origin_point[2]) / ray[2]])
 
-# TODO maybe add thresholds
+            # Calculate the minimum and maximum t values for the cube
+            t_min = max(x_min, y_min, z_min)
+            t_max = min(x_max, y_max, z_max)
+
+            # Check if the ray intersects the cube
+            if t_min < t_max:
+                # Check if the intersection point is closer than the previous closest intersection point
+                if 0.00001 < t_min < closest_intersection_distance:
+                    closest_intersection_distance = t_min
+                    closest_surface = (surface, origin_point + closest_intersection_distance * ray)
+
+
+    # TODO maybe add thresholds
 
     if closest_surface[0] is None:
         if depth == 1:
@@ -185,48 +219,48 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
             normal = closest_surface[0].normal
             normal = normal / np.linalg.norm(normal)
 
-        # elif type(closest_surface[0]) == Cube:
-        #     center = closest_surface[0].position
-        #     edge_length = closest_surface[0].scale
-        #     closet_plane = -1
-        #     minimal_distance = float('inf')
-        #     if abs(closest_surface[1][0] - (center[0] + edge_length / 2)) < minimal_distance:
-        #         closet_plane = 0
-        #         minimal_distance = abs(closest_surface[1][0] - (center[0] + edge_length / 2))
-        #
-        #     if abs(closest_surface[1][0] - (center[0] - edge_length / 2)) < minimal_distance:
-        #         closet_plane = 1
-        #         minimal_distance = abs(closest_surface[1][0] - (center[0] - edge_length / 2))
-        #
-        #     if abs(closest_surface[1][1] - (center[1] + edge_length / 2)) < minimal_distance:
-        #         closet_plane = 2
-        #         minimal_distance = abs(closest_surface[1][1] - (center[1] + edge_length / 2))
-        #
-        #     if abs(closest_surface[1][1] - (center[1] - edge_length / 2)) < minimal_distance:
-        #         closet_plane = 3
-        #         minimal_distance = abs(closest_surface[1][1] - (center[1] - edge_length / 2))
-        #
-        #     if abs(closest_surface[1][2] - (center[2] + edge_length / 2)) < minimal_distance:
-        #         closet_plane = 4
-        #         minimal_distance = abs(closest_surface[1][2] - (center[2] + edge_length / 2))
-        #
-        #     if abs(closest_surface[1][2] - (center[2] - edge_length / 2)) < minimal_distance:
-        #         closet_plane = 5
-        #         minimal_distance = abs(closest_surface[1][2] - (center[2] - edge_length / 2))
-        #
-        #     if closet_plane == 0:
-        #         normal = np.array([1, 0, 0])
-        #     elif closet_plane == 1:
-        #         normal = np.array([-1, 0, 0])
-        #     elif closet_plane == 2:
-        #         normal = np.array([0, 1, 0])
-        #     elif closet_plane == 3:
-        #         normal = np.array([0, -1, 0])
-        #     elif closet_plane == 4:
-        #         normal = np.array([0, 0, 1])
-        #     elif closet_plane == 5:
-        #         normal = np.array([0, 0, -1])
-        #     normal = normal / np.linalg.norm(normal)
+        elif type(closest_surface[0]) == Cube:
+            center = closest_surface[0].position
+            edge_length = closest_surface[0].scale
+            closet_plane = -1
+            minimal_distance = float('inf')
+            if abs(closest_surface[1][0] - (center[0] + edge_length / 2)) < minimal_distance:
+                closet_plane = 0
+                minimal_distance = abs(closest_surface[1][0] - (center[0] + edge_length / 2))
+
+            if abs(closest_surface[1][0] - (center[0] - edge_length / 2)) < minimal_distance:
+                closet_plane = 1
+                minimal_distance = abs(closest_surface[1][0] - (center[0] - edge_length / 2))
+
+            if abs(closest_surface[1][1] - (center[1] + edge_length / 2)) < minimal_distance:
+                closet_plane = 2
+                minimal_distance = abs(closest_surface[1][1] - (center[1] + edge_length / 2))
+
+            if abs(closest_surface[1][1] - (center[1] - edge_length / 2)) < minimal_distance:
+                closet_plane = 3
+                minimal_distance = abs(closest_surface[1][1] - (center[1] - edge_length / 2))
+
+            if abs(closest_surface[1][2] - (center[2] + edge_length / 2)) < minimal_distance:
+                closet_plane = 4
+                minimal_distance = abs(closest_surface[1][2] - (center[2] + edge_length / 2))
+
+            if abs(closest_surface[1][2] - (center[2] - edge_length / 2)) < minimal_distance:
+                closet_plane = 5
+                minimal_distance = abs(closest_surface[1][2] - (center[2] - edge_length / 2))
+
+            if closet_plane == 0:
+                normal = np.array([1, 0, 0])
+            elif closet_plane == 1:
+                normal = np.array([-1, 0, 0])
+            elif closet_plane == 2:
+                normal = np.array([0, 1, 0])
+            elif closet_plane == 3:
+                normal = np.array([0, -1, 0])
+            elif closet_plane == 4:
+                normal = np.array([0, 0, 1])
+            elif closet_plane == 5:
+                normal = np.array([0, 0, -1])
+            normal = normal / np.linalg.norm(normal)
 
         view = -(origin_point - closest_surface[1])
         view = view / np.linalg.norm(view)
@@ -267,12 +301,21 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
 
                 grid_ratio = bounding_box_width / scene_settings.root_number_shadow_rays
 
-                light_v_right = np.random.randn(3)
-                light_v_right -= np.dot(light_v_right, -intersection_to_light) * (-intersection_to_light) / np.linalg.norm(-intersection_to_light) ** 2
-                light_v_right /= np.linalg.norm(light_v_right)
+                # light_v_right = np.random.randn(3)
+                # light_v_right -= np.dot(light_v_right, -intersection_to_light) * (
+                #     -intersection_to_light) / np.linalg.norm(-intersection_to_light) ** 2
+                # light_v_right /= np.linalg.norm(light_v_right)
+                #
+                # light_v_up = np.cross(-intersection_to_light, light_v_right)
+                # light_v_up /= np.linalg.norm(light_v_up)
 
-                light_v_up = np.cross(-intersection_to_light, light_v_right)
-                light_v_up /= np.linalg.norm(light_v_up)
+                rand_vector = np.array(
+                    [intersection_to_light[0], intersection_to_light[1], intersection_to_light[2] + 1])
+                rand_vector = rand_vector / np.linalg.norm(rand_vector)
+                light_v_up = np.cross(normal, rand_vector)
+                light_v_up = light_v_up / np.linalg.norm(light_v_up)
+                light_v_right = np.cross(normal, light_v_up)
+                light_v_right = light_v_right / np.linalg.norm(light_v_right)
 
                 shadow_rays_count = 0
 
@@ -280,10 +323,11 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                     for y in range(int(scene_settings.root_number_shadow_rays)):
 
                         point_on_grid = light.position - light_v_right * grid_ratio * (
-                                x - math.floor(scene_settings.root_number_shadow_rays / 2)) - light_v_up * grid_ratio * (y - math.floor(
-                                    scene_settings.root_number_shadow_rays) / 2) + ((
-                                           np.random.rand() - 0.5) * grid_ratio * light_v_right + (
-                                           np.random.rand() - 0.5) * grid_ratio * light_v_up)
+                                x - math.floor(
+                            scene_settings.root_number_shadow_rays / 2)) - light_v_up * grid_ratio * (y - math.floor(
+                            scene_settings.root_number_shadow_rays) / 2) + ((
+                                                                                    np.random.rand() - 0.5) * grid_ratio * light_v_right + (
+                                                                                    np.random.rand() - 0.5) * grid_ratio * light_v_up)
                         grid_ray = - (point_on_grid - closest_surface[1])
                         grid_ray = grid_ray / np.linalg.norm(grid_ray)
 
@@ -292,8 +336,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                             shadow_rays_count += 1
 
                 light_intensity = (1 - shadow_intensity) * 1 + shadow_intensity * (
-                            shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
-
+                        shadow_rays_count / (scene_settings.root_number_shadow_rays ** 2))
 
                 diffusion_and_specular = (np.array(material_diffuse) * np.dot(normal, intersection_to_light) + \
                                           np.array(material_specular) * np.dot(view,
@@ -303,7 +346,14 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                                 (1 - surface_material.transparency) * np.array(light.color) * 255
 
         recursion_color = ray_tracer(reflected_ray, i, j, image_array, objects, scene_settings, closest_surface[1], depth + 1)
-        return_color += 255 * np.array(scene_settings.background_color) * np.array(surface_material.transparency) + np.array(surface_material.reflection_color) * recursion_color
+
+        if surface_material.transparency == 0:
+            return_color += np.array(surface_material.reflection_color) * recursion_color
+
+        else:
+            transparency_color = ray_tracer(ray, i, j, image_array, objects, scene_settings, closest_surface[1], depth + 1)
+            return_color += transparency_color * np.array(
+                surface_material.transparency) + np.array(surface_material.reflection_color) * recursion_color
 
         if depth == 1:
             image_array[i, j] = return_color
@@ -325,7 +375,8 @@ def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
 
             discriminant = (coefficients[1] ** 2) - (4 * coefficients[0] * coefficients[2])
             if discriminant >= 0:
-                roots = [(-coefficients[1] - math.sqrt(discriminant)) / (2 * coefficients[0]), ( -coefficients[1] + math.sqrt(discriminant)) / (2 * coefficients[0])]
+                roots = [(-coefficients[1] - math.sqrt(discriminant)) / (2 * coefficients[0]),
+                         (-coefficients[1] + math.sqrt(discriminant)) / (2 * coefficients[0])]
                 for t in roots:
                     if 0.00001 < t < closest_intersection_distance:
                         point_of_intersection = point_on_grid + t * ray
@@ -389,7 +440,6 @@ if __name__ == '__main__':
     main()
     end = time.time()
     print("time :", end - start)
-
 
 # TODO: comments and documentation
 # TODO: transparency bonus
