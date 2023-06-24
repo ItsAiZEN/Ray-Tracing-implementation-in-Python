@@ -164,40 +164,6 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
 
         elif type(surface) == Cube:
 
-            # # create planes for each side of the cube
-            # plane1 = InfinitePlane(np.array([1, 0, 0]), center[0] + edge_length / 2, surface.material_index)
-            # plane2 = InfinitePlane(np.array([-1, 0, 0]), center[0] + edge_length / 2, surface.material_index)
-            # plane3 = InfinitePlane(np.array([0, 1, 0]), center[1] + edge_length / 2, surface.material_index)
-            # plane4 = InfinitePlane(np.array([0, -1, 0]), center[1] + edge_length / 2, surface.material_index)
-            # plane5 = InfinitePlane(np.array([0, 0, 1]), center[2] + edge_length / 2, surface.material_index)
-            # plane6 = InfinitePlane(np.array([0, 0, -1]), center[2] + edge_length / 2, surface.material_index)
-            #
-            # planes = [plane1, plane2, plane3, plane4, plane5, plane6]
-            # t_list = []
-            #
-            # for plane in planes:
-            #
-            #     plane_normal = np.array(plane.normal)
-            #     plane_normal = plane_normal / np.linalg.norm(plane_normal)
-            #     # check if the ray is parallel to the plane
-            #     if np.dot(ray, plane_normal) != 0:
-            #         # calculate the distance between the origin point and the intersection point on the plane
-            #         t = -(np.dot(origin_point, plane_normal) - plane.offset) / np.dot(ray, plane_normal)
-            #         t_list.append(t)
-            #         # !!! maybe change offset to -offset
-            #         if t > 0.00001:
-            #             point_of_intersection = origin_point + t * ray
-            #             # check if the point is inside the cube
-            #             if (center[0] - (edge_length / 2) - 0.00001 <= point_of_intersection[0] <= center[0] + (edge_length / 2) + 0.00001)\
-            #                 and \
-            #                 (center[1] - (edge_length / 2) - 0.00001 <= point_of_intersection[1] <= center[1] + (edge_length / 2) + 0.00001)\
-            #                 and \
-            #                 (center[2] - (edge_length / 2) - 0.00001 <= point_of_intersection[2] <= center[2] + (edge_length / 2) + 0.00001):
-            #                 # check if the intersection point is closer than the previous closest intersection point
-            #                 if 0.00001 < t < closest_intersection_distance:
-            #                     closest_intersection_distance = t
-            #                     closest_surface = (plane, point_of_intersection)
-
             # Calculate the center and edge length of the cube
             center = surface.position
             edge_length = surface.scale
@@ -339,14 +305,6 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                 # grid cell)
                 grid_ratio = grid_width / scene_settings.root_number_shadow_rays
 
-                # light_v_right = np.random.randn(3)
-                # light_v_right -= np.dot(light_v_right, -intersection_to_light) * (
-                #     -intersection_to_light) / np.linalg.norm(-intersection_to_light) ** 2
-                # light_v_right /= np.linalg.norm(light_v_right)
-                #
-                # light_v_up = np.cross(-intersection_to_light, light_v_right)
-                # light_v_up /= np.linalg.norm(light_v_up)
-
                 # Create a vector that is different from the intersection to light vector
                 rand_vector = np.array(
                     [intersection_to_light[0], intersection_to_light[1], intersection_to_light[2] + 1])
@@ -374,7 +332,7 @@ def ray_tracer(ray, i, j, image_array, objects, scene_settings, origin_point, de
                             scene_settings.root_number_shadow_rays) / 2) + ((
                                                                                     np.random.rand() - 0.5) * grid_ratio * light_v_right +
                                                                             (
-                                                                                        np.random.rand() - 0.5) * grid_ratio * light_v_up)
+                                                                                    np.random.rand() - 0.5) * grid_ratio * light_v_up)
                         # Calculate the ray from the grid cell to the intersection point and normalize it
                         grid_ray = - (point_on_grid - closest_surface[1])
                         grid_ray = grid_ray / np.linalg.norm(grid_ray)
