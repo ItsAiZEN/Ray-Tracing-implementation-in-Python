@@ -86,8 +86,6 @@ def main():
     # Calculate the ratio of the screen width to the image width
     ratio = camera.screen_width / args.width
 
-    start_time = time.time()
-
     # Loop through each pixel in the image
     for i in range(args.height):
         for j in range(args.width):
@@ -98,12 +96,6 @@ def main():
 
             # Calculate the color for the current pixel
             ray_tracer(ray, i, j, image_array, objects, scene_settings, camera.position, 1)
-
-            # print percentage of image rendered
-            if (i * args.width + j) % 1000 == 0:
-                print("Percentage of image rendered: {:.2f}%".format(
-                    (i * args.width + j) / (args.width * args.height) * 100))
-                print("Time elapsed: {:.2f} seconds".format(time.time() - start_time))
 
     # Convert the image array to integers in the range [0, 255]
     for i in range(args.height):
@@ -466,7 +458,4 @@ def ray_tracer_shadow(ray, objects, original_intersection_point, point_on_grid):
 
 
 if __name__ == '__main__':
-    start = time.time()
     main()
-    end = time.time()
-    print("time :", end - start)
