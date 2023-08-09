@@ -12,4 +12,4 @@ The code also implements Soft Shadows approach which is computationally heavy bu
 
  <ins>Render output example for original2.txt: </ins>
 
-![original2](https://github.com/ItsAiZEN/Ray-Tracing-implementation-in-Python/assets/64685062/992ac7e6-2f15-42b9-955b-46a59ab97575)
+![original2](https://github.com/ItsAiZEN/Ray-Tracing-implementation-in-Python/blob/main/scenes/original2.png)
